@@ -427,6 +427,9 @@ function computeHandlerProps(matches, query) {
 
       return route.props.handler(mergeProperties(props, addedProps));
     }.bind(this, props);
+
+    // Provide a uniquely identifiable key for this handler
+    childHandler.key = props.key;
   });
 
   return props;
