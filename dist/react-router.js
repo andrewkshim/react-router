@@ -89,7 +89,8 @@ var Link = React.createClass({
   propTypes: {
     to: React.PropTypes.string.isRequired,
     activeClassName: React.PropTypes.string.isRequired,
-    query: React.PropTypes.object
+    query: React.PropTypes.object,
+    onClick: React.PropTypes.func
   },
 
   getDefaultProps: function () {
@@ -145,13 +146,23 @@ var Link = React.createClass({
     });
   },
 
-  handleClick: function (event) {
+  handleClick: function(event) {
+    var allowTransition = true;
+    var ret;
+
+    if (this.props.onClick)
+      ret = this.props.onClick(event);
+
     if (isModifiedEvent(event) || !isLeftClick(event))
       return;
 
+    if (ret === false || event.defaultPrevented === true)
+      allowTransition = false;
+
     event.preventDefault();
 
-    transitionTo(this.props.to, this.getParams(), this.props.query);
+    if (allowTransition)
+      transitionTo(this.props.to, this.getParams(), this.props.query);
   },
 
   render: function () {
@@ -189,6 +200,7 @@ var Route = _dereq_('./Route');
 
 function Redirect(props) {
   return Route({
+    name: props.name,
     path: props.from,
     handler: createRedirectClass(props.to)
   });
@@ -690,7 +702,7 @@ function checkTransitionFromHooks(matches, transition) {
 function checkTransitionToHooks(matches, transition) {
   var promise = Promise.resolve();
 
-  matches.forEach(function (match, index) {
+  matches.forEach(function (match) {
     promise = promise.then(function () {
       var handler = match.route.props.handler;
 
@@ -738,6 +750,12 @@ function computeHandlerProps(matches, query) {
 
       return route.props.handler(mergeProperties(props, addedProps));
     }.bind(this, props);
+
+    // Provide a uniquely identifiable key for this handler
+    childHandler.key = props.key;
+
+    // Provide a reference to the original route handler
+    childHandler.routeHandler = route.props.handler;
   });
 
   return props;
