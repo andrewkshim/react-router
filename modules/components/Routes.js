@@ -430,6 +430,9 @@ function computeHandlerProps(matches, query) {
 
     // Provide a uniquely identifiable key for this handler
     childHandler.key = props.key;
+
+    // Provide a reference to the original route handler
+    childHandler.routeHandler = route.props.handler;
   });
 
   return props;
