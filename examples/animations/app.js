@@ -1,22 +1,22 @@
 /** @jsx React.DOM */
 var React = require('react');
-var Router = require('../../index');
+var CSSTransitionGroup = require('react/lib/ReactCSSTransitionGroup');
+var Router = require('react-router');
 var Routes = Router.Routes;
 var Route = Router.Route;
 var Link = Router.Link;
-var Transition = require('react/lib/ReactCSSTransitionGroup');
 
 var App = React.createClass({
   render: function() {
     return (
       <div>
         <ul>
-          <li><Link to="image" service="kitten">Kitten</Link></li>
-          <li><Link to="image" service="cage">Cage</Link></li>
+          <li><Link to="image" params={{service: "kitten"}}>Kitten</Link></li>
+          <li><Link to="image" params={{service: "cage"}}>Cage</Link></li>
         </ul>
-        <Transition transitionName="example">
-          {this.props.activeRouteHandler()}
-        </Transition>
+        <CSSTransitionGroup transitionName="example">
+          <this.props.activeRouteHandler />
+        </CSSTransitionGroup>
       </div>
     );
   }
@@ -36,7 +36,7 @@ var Image = React.createClass({
 var routes = (
   <Routes>
     <Route handler={App}>
-      <Route name="image" path="/:service" handler={Image}/>
+      <Route name="image" path=":service" handler={Image} addHandlerKey={true} />
     </Route>
   </Routes>
 );

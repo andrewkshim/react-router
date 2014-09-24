@@ -1,56 +1,112 @@
 !function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.ReactRouter=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/mixins/ActiveState');
+var LocationDispatcher = _dereq_('../dispatchers/LocationDispatcher');
+var makePath = _dereq_('../utils/makePath');
 
-},{"./modules/mixins/ActiveState":24}],2:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/mixins/AsyncState');
+/**
+ * Actions that modify the URL.
+ */
+var LocationActions = {
 
-},{"./modules/mixins/AsyncState":25}],3:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/components/Link');
+  PUSH: 'push',
+  REPLACE: 'replace',
+  POP: 'pop',
+  UPDATE_SCROLL: 'update-scroll',
 
-},{"./modules/components/Link":10}],4:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/components/Redirect');
+  /**
+   * Transitions to the URL specified in the arguments by pushing
+   * a new URL onto the history stack.
+   */
+  transitionTo: function (to, params, query) {
+    LocationDispatcher.handleViewAction({
+      type: LocationActions.PUSH,
+      path: makePath(to, params, query)
+    });
+  },
 
-},{"./modules/components/Redirect":11}],5:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/components/Route');
+  /**
+   * Transitions to the URL specified in the arguments by replacing
+   * the current URL in the history stack.
+   */
+  replaceWith: function (to, params, query) {
+    LocationDispatcher.handleViewAction({
+      type: LocationActions.REPLACE,
+      path: makePath(to, params, query)
+    });
+  },
 
-},{"./modules/components/Route":12}],6:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/components/Routes');
+  /**
+   * Transitions to the previous URL.
+   */
+  goBack: function () {
+    LocationDispatcher.handleViewAction({
+      type: LocationActions.POP
+    });
+  },
 
-},{"./modules/components/Routes":13}],7:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/helpers/goBack');
+  /**
+   * Updates the window's scroll position to the last known position
+   * for the current URL path.
+   */
+  updateScroll: function () {
+    LocationDispatcher.handleViewAction({
+      type: LocationActions.UPDATE_SCROLL
+    });
+  }
 
-},{"./modules/helpers/goBack":16}],8:[function(_dereq_,module,exports){
-exports.ActiveState = _dereq_('./ActiveState');
-exports.AsyncState = _dereq_('./AsyncState');
-exports.Link = _dereq_('./Link');
-exports.Redirect = _dereq_('./Redirect');
-exports.Route = _dereq_('./Route');
-exports.Routes = _dereq_('./Routes');
-exports.goBack = _dereq_('./goBack');
-exports.replaceWith = _dereq_('./replaceWith');
-exports.transitionTo = _dereq_('./transitionTo');
-exports.makeHref = _dereq_('./makeHref');
+};
 
-},{"./ActiveState":1,"./AsyncState":2,"./Link":3,"./Redirect":4,"./Route":5,"./Routes":6,"./goBack":7,"./makeHref":9,"./replaceWith":62,"./transitionTo":63}],9:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/helpers/makeHref');
+module.exports = LocationActions;
 
-},{"./modules/helpers/makeHref":17}],10:[function(_dereq_,module,exports){
+},{"../dispatchers/LocationDispatcher":8,"../utils/makePath":26}],2:[function(_dereq_,module,exports){
+var merge = _dereq_('react/lib/merge');
+var Route = _dereq_('./Route');
+
+/**
+ * A <DefaultRoute> component is a special kind of <Route> that
+ * renders when its parent matches but none of its siblings do.
+ * Only one such route may be used at any given level in the
+ * route hierarchy.
+ */
+function DefaultRoute(props) {
+  return Route(
+    merge(props, {
+      path: null,
+      isDefault: true
+    })
+  );
+}
+
+module.exports = DefaultRoute;
+
+},{"./Route":6,"react/lib/merge":44}],3:[function(_dereq_,module,exports){
 var React = (typeof window !== "undefined" ? window.React : typeof global !== "undefined" ? global.React : null);
 var ActiveState = _dereq_('../mixins/ActiveState');
-var withoutProperties = _dereq_('../helpers/withoutProperties');
-var transitionTo = _dereq_('../helpers/transitionTo');
-var makeHref = _dereq_('../helpers/makeHref');
-var hasOwn = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
+var transitionTo = _dereq_('../actions/LocationActions').transitionTo;
+var withoutProperties = _dereq_('../utils/withoutProperties');
+var hasOwnProperty = _dereq_('../utils/hasOwnProperty');
+var makeHref = _dereq_('../utils/makeHref');
+var warning = _dereq_('react/lib/warning');
+
+function isLeftClickEvent(event) {
+  return event.button === 0;
+}
+
+function isModifiedEvent(event) {
+  return !!(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey);
+}
+
 /**
- * A map of <Link> component props that are reserved for use by the
+ * DEPRECATED: A map of <Link> component props that are reserved for use by the
  * router and/or React. All other props are used as params that are
  * interpolated into the link's path.
  */
 var RESERVED_PROPS = {
   to: true,
+  key: true,
   className: true,
   activeClassName: true,
   query: true,
+  onClick:true,
   children: true // ReactChildren
 };
 
@@ -65,12 +121,12 @@ var RESERVED_PROPS = {
  *
  * You could use the following component to link to that route:
  *
- *   <Link to="showPost" postId="123"/>
+ *   <Link to="showPost" params={{postId: "123"}} />
  *
  * In addition to params, links may pass along query string parameters
  * using the `query` prop.
  *
- *   <Link to="showPost" postId="123" query={{show:true}}/>
+ *   <Link to="showPost" params={{postId: "123"}} query={{show:true}}/>
  */
 var Link = React.createClass({
 
@@ -80,8 +136,22 @@ var Link = React.createClass({
 
   statics: {
 
+    // TODO: Deprecate passing props as params in v1.0
     getUnreservedProps: function (props) {
-      return withoutProperties(props, RESERVED_PROPS);
+      var props = withoutProperties(props, RESERVED_PROPS);
+      warning(
+        Object.keys(props).length === 0,
+        'Passing props for params on <Link>s is deprecated, '+
+        'please use the `params` property.'
+      );
+      return props;
+    },
+
+    /**
+     * Returns a hash of URL parameters to use in this <Link>'s path.
+     */
+    getParams: function (props) {
+      return props.params || Link.getUnreservedProps(props);
     }
 
   },
@@ -89,6 +159,7 @@ var Link = React.createClass({
   propTypes: {
     to: React.PropTypes.string.isRequired,
     activeClassName: React.PropTypes.string.isRequired,
+    params: React.PropTypes.object,
     query: React.PropTypes.object,
     onClick: React.PropTypes.func
   },
@@ -106,17 +177,10 @@ var Link = React.createClass({
   },
 
   /**
-   * Returns a hash of URL parameters to use in this <Link>'s path.
-   */
-  getParams: function () {
-    return Link.getUnreservedProps(this.props);
-  },
-
-  /**
    * Returns the value of the "href" attribute to use on the DOM element.
    */
   getHref: function () {
-    return makeHref(this.props.to, this.getParams(), this.props.query);
+    return makeHref(this.props.to, Link.getParams(this.props), this.props.query);
   },
 
   /**
@@ -133,7 +197,7 @@ var Link = React.createClass({
   },
 
   componentWillReceiveProps: function (nextProps) {
-    var params = Link.getUnreservedProps(nextProps);
+    var params = Link.getParams(nextProps);
 
     this.setState({
       isActive: Link.isActive(nextProps.to, params, nextProps.query)
@@ -142,18 +206,18 @@ var Link = React.createClass({
 
   updateActiveState: function () {
     this.setState({
-      isActive: Link.isActive(this.props.to, this.getParams(), this.props.query)
+      isActive: Link.isActive(this.props.to, Link.getParams(this.props), this.props.query)
     });
   },
 
-  handleClick: function(event) {
+  handleClick: function (event) {
     var allowTransition = true;
     var ret;
 
     if (this.props.onClick)
       ret = this.props.onClick(event);
 
-    if (isModifiedEvent(event) || !isLeftClick(event))
+    if (isModifiedEvent(event) || !isLeftClickEvent(event))
       return;
 
     if (ret === false || event.defaultPrevented === true)
@@ -162,7 +226,7 @@ var Link = React.createClass({
     event.preventDefault();
 
     if (allowTransition)
-      transitionTo(this.props.to, this.getParams(), this.props.query);
+      transitionTo(this.props.to, Link.getParams(this.props), this.props.query);
   },
 
   render: function () {
@@ -174,9 +238,8 @@ var Link = React.createClass({
 
     // pull in props without overriding
     for (var propName in this.props) {
-      if (hasOwn(this.props, propName) && hasOwn(props, propName) === false) {
+      if (hasOwnProperty(this.props, propName) && hasOwnProperty(props, propName) === false)
         props[propName] = this.props[propName];
-      }
     }
 
     return React.DOM.a(props, this.props.children);
@@ -184,47 +247,65 @@ var Link = React.createClass({
 
 });
 
-function isLeftClick(event) {
-  return event.button === 0;
-}
-
-function isModifiedEvent(event) {
-  return !!(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey);
-}
-
 module.exports = Link;
 
-},{"../helpers/makeHref":17,"../helpers/transitionTo":22,"../helpers/withoutProperties":23,"../mixins/ActiveState":24}],11:[function(_dereq_,module,exports){
+},{"../actions/LocationActions":1,"../mixins/ActiveState":15,"../utils/hasOwnProperty":24,"../utils/makeHref":25,"../utils/withoutProperties":29,"react/lib/warning":48}],4:[function(_dereq_,module,exports){
+var merge = _dereq_('react/lib/merge');
+var Route = _dereq_('./Route');
+
+/**
+ * A <NotFoundRoute> is a special kind of <Route> that
+ * renders when the beginning of its parent's path matches
+ * but none of its siblings do, including any <DefaultRoute>.
+ * Only one such route may be used at any given level in the
+ * route hierarchy.
+ */
+function NotFoundRoute(props) {
+  return Route(
+    merge(props, {
+      path: null,
+      catchAll: true
+    })
+  );
+}
+
+module.exports = NotFoundRoute;
+
+},{"./Route":6,"react/lib/merge":44}],5:[function(_dereq_,module,exports){
 var React = (typeof window !== "undefined" ? window.React : typeof global !== "undefined" ? global.React : null);
 var Route = _dereq_('./Route');
 
-function Redirect(props) {
-  return Route({
-    name: props.name,
-    path: props.from,
-    handler: createRedirectClass(props.to)
-  });
-}
-
-function createRedirectClass(to) {
+function createRedirectHandler(to) {
   return React.createClass({
     statics: {
-      willTransitionTo: function(transition, params, query) {
+      willTransitionTo: function (transition, params, query) {
         transition.redirect(to, params, query);
       }
     },
 
-    render: function() {
+    render: function () {
       return null;
     }
   });
 }
 
+/**
+ * A <Redirect> component is a special kind of <Route> that always
+ * redirects to another route when it matches.
+ */
+function Redirect(props) {
+  return Route({
+    name: props.name,
+    path: props.from || props.path || '*',
+    handler: createRedirectHandler(props.to)
+  });
+}
+
 module.exports = Redirect;
 
-},{"./Route":12}],12:[function(_dereq_,module,exports){
+},{"./Route":6}],6:[function(_dereq_,module,exports){
 var React = (typeof window !== "undefined" ? window.React : typeof global !== "undefined" ? global.React : null);
-var withoutProperties = _dereq_('../helpers/withoutProperties');
+var withoutProperties = _dereq_('../utils/withoutProperties');
 
 /**
  * A map of <Route> component props that are reserved for use by the
@@ -234,6 +315,8 @@ var withoutProperties = _dereq_('../helpers/withoutProperties');
 var RESERVED_PROPS = {
   handler: true,
   path: true,
+  defaultRoute: true,
+  paramNames: true,
   children: true // ReactChildren
 };
 
@@ -287,6 +370,7 @@ var RESERVED_PROPS = {
  *   });
  */
 var Route = React.createClass({
+
   displayName: 'Route',
 
   statics: {
@@ -297,48 +381,96 @@ var Route = React.createClass({
 
   },
 
-  getDefaultProps: function() {
+  propTypes: {
+    preserveScrollPosition: React.PropTypes.bool.isRequired,
+    handler: React.PropTypes.any.isRequired,
+    path: React.PropTypes.string,
+    name: React.PropTypes.string
+  },
+
+  getDefaultProps: function () {
     return {
       preserveScrollPosition: false
     };
   },
 
-  propTypes: {
-    handler: React.PropTypes.any.isRequired,
-    path: React.PropTypes.string,
-    name: React.PropTypes.string,
-    preserveScrollPosition: React.PropTypes.bool
-  },
-
   render: function () {
     throw new Error(
       'The <Route> component should not be rendered directly. You may be ' +
-      'missing a <Routes> wrapper around your list of routes.');
+      'missing a <Routes> wrapper around your list of routes.'
+    );
   }
 
 });
 
 module.exports = Route;
 
-},{"../helpers/withoutProperties":23}],13:[function(_dereq_,module,exports){
+},{"../utils/withoutProperties":29}],7:[function(_dereq_,module,exports){
 var React = (typeof window !== "undefined" ? window.React : typeof global !== "undefined" ? global.React : null);
 var warning = _dereq_('react/lib/warning');
-var ExecutionEnvironment = _dereq_('react/lib/ExecutionEnvironment');
-var mergeProperties = _dereq_('../helpers/mergeProperties');
-var goBack = _dereq_('../helpers/goBack');
-var replaceWith = _dereq_('../helpers/replaceWith');
-var transitionTo = _dereq_('../helpers/transitionTo');
+var copyProperties = _dereq_('react/lib/copyProperties');
+var Promise = _dereq_('when/lib/Promise');
+var LocationActions = _dereq_('../actions/LocationActions');
 var Route = _dereq_('../components/Route');
-var Path = _dereq_('../helpers/Path');
+var Path = _dereq_('../utils/Path');
+var Redirect = _dereq_('../utils/Redirect');
+var Transition = _dereq_('../utils/Transition');
+var DefaultLocation = _dereq_('../locations/DefaultLocation');
+var HashLocation = _dereq_('../locations/HashLocation');
+var HistoryLocation = _dereq_('../locations/HistoryLocation');
+var RefreshLocation = _dereq_('../locations/RefreshLocation');
 var ActiveStore = _dereq_('../stores/ActiveStore');
+var PathStore = _dereq_('../stores/PathStore');
 var RouteStore = _dereq_('../stores/RouteStore');
-var URLStore = _dereq_('../stores/URLStore');
-var Promise = _dereq_('es6-promise').Promise;
 
 /**
  * The ref name that can be used to reference the active route component.
  */
 var REF_NAME = '__activeRoute__';
+
+/**
+ * A hash of { name, location } pairs of all locations.
+ */
+var NAMED_LOCATIONS = {
+  hash: HashLocation,
+  history: HistoryLocation,
+  refresh: RefreshLocation
+};
+
+/**
+ * The default handler for aborted transitions. Redirects replace
+ * the current URL and all others roll it back.
+ */
+function defaultAbortedTransitionHandler(transition) {
+  var reason = transition.abortReason;
+
+  if (reason instanceof Redirect) {
+    LocationActions.replaceWith(reason.to, reason.params, reason.query);
+  } else {
+    LocationActions.goBack();
+  }
+}
+
+/**
+ * The default handler for active state updates.
+ */
+function defaultActiveStateChangeHandler(state) {
+  ActiveStore.updateState(state);
+}
+
+/**
+ * The default handler for errors that were thrown asynchronously
+ * while transitioning. The default behavior is to re-throw the
+ * error so that it isn't silently swallowed.
+ */
+function defaultTransitionErrorHandler(error) {
+  throw error; // This error probably originated in a transition hook.
+}
+
+function maybeUpdateScroll(routes, rootRoute) {
+  if (!routes.props.preserveScrollPosition && !rootRoute.props.preserveScrollPosition)
+    LocationActions.updateScroll();
+}
 
 /**
  * The <Routes> component configures the route hierarchy and renders the
@@ -347,71 +479,62 @@ var REF_NAME = '__activeRoute__';
  * See the <Route> component for more details.
  */
 var Routes = React.createClass({
+
   displayName: 'Routes',
 
-  statics: {
-
-    /**
-     * Handles errors that were thrown asynchronously. By default, the
-     * error is re-thrown so we don't swallow them silently.
-     */
-    handleAsyncError: function (error, route) {
-      throw error; // This error probably originated in a transition hook.
-    },
-
-    /**
-     * Handles cancelled transitions. By default, redirects replace the
-     * current URL and aborts roll it back.
-     */
-    handleCancelledTransition: function (transition, routes) {
-      var reason = transition.cancelReason;
-
-      if (reason instanceof Redirect) {
-        replaceWith(reason.to, reason.params, reason.query);
-      } else if (reason instanceof Abort) {
-        goBack();
-      }
-    }
-
-  },
-
   propTypes: {
-    location: React.PropTypes.oneOf([ 'hash', 'history' ]).isRequired,
-    preserveScrollPosition: React.PropTypes.bool
+    onAbortedTransition: React.PropTypes.func.isRequired,
+    onActiveStateChange: React.PropTypes.func.isRequired,
+    onTransitionError: React.PropTypes.func.isRequired,
+    preserveScrollPosition: React.PropTypes.bool,
+    location: function (props, propName, componentName) {
+      var location = props[propName];
+
+      if (typeof location === 'string' && !(location in NAMED_LOCATIONS))
+        return new Error('Unknown location "' + location + '", see ' + componentName);
+    }
   },
 
   getDefaultProps: function () {
     return {
-      location: 'hash',
-      preserveScrollPosition: false
+      onAbortedTransition: defaultAbortedTransitionHandler,
+      onActiveStateChange: defaultActiveStateChangeHandler,
+      onTransitionError: defaultTransitionErrorHandler,
+      preserveScrollPosition: false,
+      location: DefaultLocation
     };
   },
 
   getInitialState: function () {
-    return {};
+    return {
+      routes: RouteStore.registerChildren(this.props.children, this)
+    };
+  },
+
+  getLocation: function () {
+    var location = this.props.location;
+
+    if (typeof location === 'string')
+      return NAMED_LOCATIONS[location];
+
+    return location;
   },
 
   componentWillMount: function () {
-    React.Children.forEach(this.props.children, function (child) {
-      RouteStore.registerRoute(child);
-    });
-
-    if (!URLStore.isSetup() && ExecutionEnvironment.canUseDOM)
-      URLStore.setup(this.props.location);
-
-    URLStore.addChangeListener(this.handleRouteChange);
+    PathStore.setup(this.getLocation());
+    PathStore.addChangeListener(this.handlePathChange);
   },
 
   componentDidMount: function () {
-    this.dispatch(URLStore.getCurrentPath());
+    this.handlePathChange();
   },
 
   componentWillUnmount: function () {
-    URLStore.removeChangeListener(this.handleRouteChange);
+    PathStore.removeChangeListener(this.handlePathChange);
   },
 
-  handleRouteChange: function () {
-    this.dispatch(URLStore.getCurrentPath());
+  handlePathChange: function () {
+    this.dispatch(PathStore.getCurrentPath());
   },
 
   /**
@@ -432,15 +555,7 @@ var Routes = React.createClass({
    *                               { route: <PostRoute>, params: { id: '123' } } ]
    */
   match: function (path) {
-    var rootRoutes = this.props.children;
-    if (!Array.isArray(rootRoutes)) {
-      rootRoutes = [rootRoutes];
-    }
-    var matches = null;
-    for (var i = 0; matches == null && i < rootRoutes.length; i++) {
-      matches = findMatches(Path.withoutQuery(path), rootRoutes[i]);
-    }
-    return matches;
+    return findMatches(Path.withoutQuery(path), this.state.routes, this.props.defaultRoute, this.props.notFoundRoute);
   },
 
   /**
@@ -471,11 +586,18 @@ var Routes = React.createClass({
     var transition = new Transition(path);
     var routes = this;
 
-    var promise = syncWithTransition(routes, transition).then(function (newState) {
-      if (transition.isCancelled) {
-        Routes.handleCancelledTransition(transition, routes);
-      } else if (newState) {
-        ActiveStore.updateState(newState);
+    var promise = runTransitionHooks(routes, transition).then(function (nextState) {
+      if (transition.isAborted) {
+        routes.props.onAbortedTransition(transition);
+      } else if (nextState) {
+        routes.setState(nextState);
+        routes.props.onActiveStateChange(nextState);
+
+        // TODO: add functional test
+        var rootMatch = getRootMatch(nextState.matches);
+
+        if (rootMatch)
+          maybeUpdateScroll(routes, rootMatch.route);
       }
 
       return transition;
@@ -485,7 +607,7 @@ var Routes = React.createClass({
       promise = promise.then(undefined, function (error) {
         // Use setTimeout to break the promise chain.
         setTimeout(function () {
-          Routes.handleAsyncError(error, routes);
+          routes.props.onTransitionError(error);
         });
       });
     }
@@ -508,71 +630,44 @@ var Routes = React.createClass({
 
 });
 
-function Transition(path) {
-  this.path = path;
-  this.cancelReason = null;
-  this.isCancelled = false;
-}
+function findMatches(path, routes, defaultRoute, notFoundRoute) {
+  var matches = null, route, params;
 
-mergeProperties(Transition.prototype, {
+  for (var i = 0, len = routes.length; i < len; ++i) {
+    route = routes[i];
 
-  abort: function () {
-    this.cancelReason = new Abort();
-    this.isCancelled = true;
-  },
+    // Check the subtree first to find the most deeply-nested match.
+    matches = findMatches(path, route.props.children, route.props.defaultRoute, route.props.notFoundRoute);
 
-  redirect: function (to, params, query) {
-    this.cancelReason = new Redirect(to, params, query);
-    this.isCancelled = true;
-  },
+    if (matches != null) {
+      var rootParams = getRootMatch(matches).params;
+      
+      params = route.props.paramNames.reduce(function (params, paramName) {
+        params[paramName] = rootParams[paramName];
+        return params;
+      }, {});
 
-  retry: function () {
-    transitionTo(this.path);
-  }
+      matches.unshift(makeMatch(route, params));
 
-});
-
-function Abort() {}
-
-function Redirect(to, params, query) {
-  this.to = to;
-  this.params = params;
-  this.query = query;
-}
-
-function findMatches(path, route) {
-  var children = route.props.children, matches;
-  var params;
-
-  // Check the subtree first to find the most deeply-nested match.
-  if (Array.isArray(children)) {
-    for (var i = 0, len = children.length; matches == null && i < len; ++i) {
-      matches = findMatches(path, children[i]);
+      return matches;
     }
-  } else if (children) {
-    matches = findMatches(path, children);
+
+    // No routes in the subtree matched, so check this route.
+    params = Path.extractParams(route.props.path, path);
+
+    if (params)
+      return [ makeMatch(route, params) ];
   }
 
-  if (matches) {
-    var rootParams = getRootMatch(matches).params;
-    params = {};
+  // No routes matched, so try the default route if there is one.
+  if (defaultRoute && (params = Path.extractParams(defaultRoute.props.path, path)))
+    return [ makeMatch(defaultRoute, params) ];
 
-    Path.extractParamNames(route.props.path).forEach(function (paramName) {
-      params[paramName] = rootParams[paramName];
-    });
+  // Last attempt: does the "not found" route match?
+  if (notFoundRoute && (params = Path.extractParams(notFoundRoute.props.path, path)))
+    return [ makeMatch(notFoundRoute, params) ];
 
-    matches.unshift(makeMatch(route, params));
-
-    return matches;
-  }
-
-  // No routes in the subtree matched, so check this route.
-  params = Path.extractParams(route.props.path, path);
-
-  if (params)
-    return [ makeMatch(route, params) ];
-
-  return null;
+  return matches;
 }
 
 function makeMatch(route, params) {
@@ -611,7 +706,7 @@ function updateMatchComponents(matches, refs) {
  * if they all pass successfully. Returns a promise that resolves to the new
  * state if it needs to be updated, or undefined if not.
  */
-function syncWithTransition(routes, transition) {
+function runTransitionHooks(routes, transition) {
   if (routes.state.path === transition.path)
     return Promise.resolve(); // Nothing to do!
 
@@ -643,18 +738,20 @@ function syncWithTransition(routes, transition) {
     toMatches = nextMatches;
   }
 
-  return checkTransitionFromHooks(fromMatches, transition).then(function () {
-    if (transition.isCancelled)
+  var query = Path.extractQuery(transition.path) || {};
+
+  return runTransitionFromHooks(fromMatches, transition).then(function () {
+    if (transition.isAborted)
       return; // No need to continue.
 
-    return checkTransitionToHooks(toMatches, transition).then(function () {
-      if (transition.isCancelled)
+    return runTransitionToHooks(toMatches, transition, query).then(function () {
+      if (transition.isAborted)
         return; // No need to continue.
 
       var rootMatch = getRootMatch(nextMatches);
       var params = (rootMatch && rootMatch.params) || {};
-      var query = Path.extractQuery(transition.path) || {};
-      var state = {
+
+      return {
         path: transition.path,
         matches: nextMatches,
         activeParams: params,
@@ -663,12 +760,6 @@ function syncWithTransition(routes, transition) {
           return match.route;
         })
       };
-
-      // TODO: add functional test
-      maybeScrollWindow(routes, toMatches[toMatches.length - 1]);
-      routes.setState(state);
-
-      return state;
     });
   });
 }
@@ -679,14 +770,14 @@ function syncWithTransition(routes, transition) {
  * the route's handler, so that the deepest nested handlers are called first.
  * Returns a promise that resolves after the last handler.
  */
-function checkTransitionFromHooks(matches, transition) {
+function runTransitionFromHooks(matches, transition) {
   var promise = Promise.resolve();
 
   reversedArray(matches).forEach(function (match) {
     promise = promise.then(function () {
       var handler = match.route.props.handler;
 
-      if (!transition.isCancelled && handler.willTransitionFrom)
+      if (!transition.isAborted && handler.willTransitionFrom)
         return handler.willTransitionFrom(transition, match.component);
     });
   });
@@ -699,15 +790,15 @@ function checkTransitionFromHooks(matches, transition) {
  * with the transition object and any params that apply to that handler. Returns
  * a promise that resolves after the last handler.
  */
-function checkTransitionToHooks(matches, transition) {
+function runTransitionToHooks(matches, transition, query) {
   var promise = Promise.resolve();
 
   matches.forEach(function (match) {
     promise = promise.then(function () {
       var handler = match.route.props.handler;
 
-      if (!transition.isCancelled && handler.willTransitionTo)
-        return handler.willTransitionTo(transition, match.params);
+      if (!transition.isAborted && handler.willTransitionTo)
+        return handler.willTransitionTo(transition, match.params, query);
     });
   });
 
@@ -734,9 +825,11 @@ function computeHandlerProps(matches, query) {
     props = Route.getUnreservedProps(route.props);
 
     props.ref = REF_NAME;
-    props.key = Path.injectParams(route.props.path, match.params);
     props.params = match.params;
     props.query = query;
+
+    if (route.props.addHandlerKey)
+      props.key = Path.injectParams(route.props.path, match.params);
 
     if (childHandler) {
       props.activeRouteHandler = childHandler;
@@ -748,7 +841,7 @@ function computeHandlerProps(matches, query) {
       if (arguments.length > 2 && typeof arguments[2] !== 'undefined')
         throw new Error('Passing children to a route handler is not supported');
 
-      return route.props.handler(mergeProperties(props, addedProps));
+      return route.props.handler(copyProperties(props, addedProps));
     }.bind(this, props);
 
     // Provide a uniquely identifiable key for this handler
@@ -769,331 +862,280 @@ function reversedArray(array) {
   return array.slice(0).reverse();
 }
 
-function maybeScrollWindow(routes, match) {
-  if (routes.props.preserveScrollPosition)
-    return;
-
-  if (!match || match.route.props.preserveScrollPosition)
-    return;
-
-  window.scrollTo(0, 0);
-}
-
 module.exports = Routes;
 
-},{"../components/Route":12,"../helpers/Path":14,"../helpers/goBack":16,"../helpers/mergeProperties":19,"../helpers/replaceWith":20,"../helpers/transitionTo":22,"../stores/ActiveStore":26,"../stores/RouteStore":27,"../stores/URLStore":28,"es6-promise":32,"react/lib/ExecutionEnvironment":57,"react/lib/warning":61}],14:[function(_dereq_,module,exports){
-var invariant = _dereq_('react/lib/invariant');
-var qs = _dereq_('querystring');
-var mergeProperties = _dereq_('./mergeProperties');
-var URL = _dereq_('./URL');
-
-var paramMatcher = /((?::[a-z_$][a-z0-9_$]*)|\*)/ig;
-var queryMatcher = /\?(.+)/;
-
-function getParamName(pathSegment) {
-  return pathSegment === '*' ? 'splat' : pathSegment.substr(1);
-}
-
-var _compiledPatterns = {};
-
-function compilePattern(pattern) {
-  if (_compiledPatterns[pattern])
-    return _compiledPatterns[pattern];
-
-  var compiled = _compiledPatterns[pattern] = {};
-  var paramNames = compiled.paramNames = [];
-
-  var source = pattern.replace(paramMatcher, function (match, pathSegment) {
-    paramNames.push(getParamName(pathSegment));
-    return pathSegment === '*' ? '(.*?)' : '([^/?#]+)';
-  });
-
-  compiled.matcher = new RegExp('^' + source + '$', 'i');
-
-  return compiled;
-}
-
-function isDynamicPattern(pattern) {
-  return pattern.indexOf(':') !== -1 || pattern.indexOf('*') !== -1;
-}
-
-var Path = {
-
-  /**
-   * Extracts the portions of the given URL path that match the given pattern
-   * and returns an object of param name => value pairs. Returns null if the
-   * pattern does not match the given path.
-   */
-  extractParams: function (pattern, path) {
-    if (!pattern)
-      return null;
-
-    if (!isDynamicPattern(pattern)) {
-      if (pattern === URL.decode(path))
-        return {}; // No dynamic segments, but the paths match.
-
-      return null;
-    }
-
-    var compiled = compilePattern(pattern);
-    var match = URL.decode(path).match(compiled.matcher);
-
-    if (!match)
-      return null;
-
-    var params = {};
-
-    compiled.paramNames.forEach(function (paramName, index) {
-      params[paramName] = match[index + 1];
-    });
-
-    return params;
-  },
-
-  /**
-   * Returns an array of the names of all parameters in the given pattern.
-   */
-  extractParamNames: function (pattern) {
-    if (!pattern)
-      return [];
-    return compilePattern(pattern).paramNames;
-  },
-
-  /**
-   * Returns a version of the given route path with params interpolated. Throws
-   * if there is a dynamic segment of the route path for which there is no param.
-   */
-  injectParams: function (pattern, params) {
-    if (!pattern)
-      return null;
-
-    if (!isDynamicPattern(pattern))
-      return pattern;
-
-    params = params || {};
-
-    return pattern.replace(paramMatcher, function (match, pathSegment) {
-      var paramName = getParamName(pathSegment);
-
-      invariant(
-        params[paramName] != null,
-        'Missing "' + paramName + '" parameter for path "' + pattern + '"'
-      );
-
-      // Preserve forward slashes.
-      return String(params[paramName]).split('/').map(URL.encode).join('/');
-    });
-  },
-
-  /**
-   * Returns an object that is the result of parsing any query string contained in
-   * the given path, null if the path contains no query string.
-   */
-  extractQuery: function (path) {
-    var match = path.match(queryMatcher);
-    return match && qs.parse(match[1]);
-  },
-
-  /**
-   * Returns a version of the given path without the query string.
-   */
-  withoutQuery: function (path) {
-    return path.replace(queryMatcher, '');
-  },
-
-  /**
-   * Returns a version of the given path with the parameters in the given query
-   * added to the query string.
-   */
-  withQuery: function (path, query) {
-    var existingQuery = Path.extractQuery(path);
-
-    if (existingQuery)
-      query = query ? mergeProperties(existingQuery, query) : existingQuery;
-
-    var queryString = query && qs.stringify(query);
-
-    if (queryString)
-      return Path.withoutQuery(path) + '?' + queryString;
-
-    return path;
-  },
-
-  /**
-   * Returns a normalized version of the given path.
-   */
-  normalize: function (path) {
-    return path.replace(/^\/*/, '/');
-  }
-
-};
-
-module.exports = Path;
-
-},{"./URL":15,"./mergeProperties":19,"querystring":31,"react/lib/invariant":60}],15:[function(_dereq_,module,exports){
-var urlEncodedSpaceRE = /\+/g;
-var encodedSpaceRE = /%20/g;
-
-var URL = {
-
-  /* These functions were copied from the https://github.com/cujojs/rest source, MIT licensed */
-
-  decode: function (str) {
-    // spec says space should be encoded as '+'
-    str = str.replace(urlEncodedSpaceRE, ' ');
-    return decodeURIComponent(str);
-  },
-
-  encode: function (str) {
-    str = encodeURIComponent(str);
-    // spec says space should be encoded as '+'
-    return str.replace(encodedSpaceRE, '+');
-  }
-
-};
-
-module.exports = URL;
-
-},{}],16:[function(_dereq_,module,exports){
-var URLStore = _dereq_('../stores/URLStore');
-
-function goBack() {
-  URLStore.back();
-}
-
-module.exports = goBack;
-
-},{"../stores/URLStore":28}],17:[function(_dereq_,module,exports){
-var URLStore = _dereq_('../stores/URLStore');
-var makePath = _dereq_('./makePath');
+},{"../actions/LocationActions":1,"../components/Route":6,"../locations/DefaultLocation":10,"../locations/HashLocation":11,"../locations/HistoryLocation":12,"../locations/RefreshLocation":14,"../stores/ActiveStore":17,"../stores/PathStore":18,"../stores/RouteStore":19,"../utils/Path":20,"../utils/Redirect":21,"../utils/Transition":22,"react/lib/copyProperties":40,"react/lib/warning":48,"when/lib/Promise":49}],8:[function(_dereq_,module,exports){
+var copyProperties = _dereq_('react/lib/copyProperties');
+var Dispatcher = _dereq_('flux').Dispatcher;
 
 /**
- * Returns a string that may safely be used as the href of a
- * link to the route with the given name.
+ * Dispatches actions that modify the URL.
  */
-function makeHref(routeName, params, query) {
-  var path = makePath(routeName, params, query);
+var LocationDispatcher = copyProperties(new Dispatcher, {
 
-  if (URLStore.getLocation() === 'hash')
-    return '#' + path;
+  handleViewAction: function (action) {
+    this.dispatch({
+      source: 'VIEW_ACTION',
+      action: action
+    });
+  }
 
-  return path;
+});
+
+module.exports = LocationDispatcher;
+
+},{"flux":31,"react/lib/copyProperties":40}],9:[function(_dereq_,module,exports){
+exports.goBack = _dereq_('./actions/LocationActions').goBack;
+exports.replaceWith = _dereq_('./actions/LocationActions').replaceWith;
+exports.transitionTo = _dereq_('./actions/LocationActions').transitionTo;
+
+exports.DefaultRoute = _dereq_('./components/DefaultRoute');
+exports.Link = _dereq_('./components/Link');
+exports.NotFoundRoute = _dereq_('./components/NotFoundRoute');
+exports.Redirect = _dereq_('./components/Redirect');
+exports.Route = _dereq_('./components/Route');
+exports.Routes = _dereq_('./components/Routes');
+
+exports.ActiveState = _dereq_('./mixins/ActiveState');
+exports.AsyncState = _dereq_('./mixins/AsyncState');
+
+exports.makeHref = _dereq_('./utils/makeHref');
+
+},{"./actions/LocationActions":1,"./components/DefaultRoute":2,"./components/Link":3,"./components/NotFoundRoute":4,"./components/Redirect":5,"./components/Route":6,"./components/Routes":7,"./mixins/ActiveState":15,"./mixins/AsyncState":16,"./utils/makeHref":25}],10:[function(_dereq_,module,exports){
+module.exports = "production" === 'test'
+  ? _dereq_('./MemoryLocation')
+  : _dereq_('./HashLocation');
+
+},{"./HashLocation":11,"./MemoryLocation":13}],11:[function(_dereq_,module,exports){
+var invariant = _dereq_('react/lib/invariant');
+var ExecutionEnvironment = _dereq_('react/lib/ExecutionEnvironment');
+var getWindowPath = _dereq_('../utils/getWindowPath');
+
+function getHashPath() {
+  return window.location.hash.substr(1);
 }
 
-module.exports = makeHref;
+function ensureSlash() {
+  var path = getHashPath();
 
-},{"../stores/URLStore":28,"./makePath":18}],18:[function(_dereq_,module,exports){
-var invariant = _dereq_('react/lib/invariant');
-var RouteStore = _dereq_('../stores/RouteStore');
-var Path = _dereq_('./Path');
+  if (path.charAt(0) === '/')
+    return true;
+
+  HashLocation.replace('/' + path);
+
+  return false;
+}
+
+var _onChange;
+
+function handleHashChange() {
+  if (ensureSlash())
+    _onChange();
+}
 
 /**
- * Returns an absolute URL path created from the given route name, URL
- * parameters, and query values.
+ * A Location that uses `window.location.hash`.
  */
-function makePath(to, params, query) {
-  var path;
-  if (to.charAt(0) === '/') {
-    path = Path.normalize(to); // Absolute path.
-  } else {
-    var route = RouteStore.getRouteByName(to);
+var HashLocation = {
 
+  setup: function (onChange) {
     invariant(
-      route,
-      'Unable to find a route named "' + to + '". Make sure you have ' +
-      'a <Route name="' + to + '"> defined somewhere in your routes'
+      ExecutionEnvironment.canUseDOM,
+      'You cannot use HashLocation in an environment with no DOM'
     );
 
-    path = route.props.path;
+    _onChange = onChange;
+
+    ensureSlash();
+
+    if (window.addEventListener) {
+      window.addEventListener('hashchange', handleHashChange, false);
+    } else {
+      window.attachEvent('onhashchange', handleHashChange);
+    }
+  },
+
+  teardown: function () {
+    if (window.removeEventListener) {
+      window.removeEventListener('hashchange', handleHashChange, false);
+    } else {
+      window.detachEvent('onhashchange', handleHashChange);
+    }
+  },
+
+  push: function (path) {
+    window.location.hash = path;
+  },
+
+  replace: function (path) {
+    window.location.replace(getWindowPath() + '#' + path);
+  },
+
+  pop: function () {
+    window.history.back();
+  },
+
+  getCurrentPath: getHashPath,
+
+  toString: function () {
+    return '<HashLocation>';
   }
 
-  return Path.withQuery(Path.injectParams(path, params), query);
-}
+};
 
-module.exports = makePath;
+module.exports = HashLocation;
 
-},{"../stores/RouteStore":27,"./Path":14,"react/lib/invariant":60}],19:[function(_dereq_,module,exports){
-function mergeProperties(object, properties) {
-  for (var property in properties) {
-    if (properties.hasOwnProperty(property))
-      object[property] = properties[property];
+},{"../utils/getWindowPath":23,"react/lib/ExecutionEnvironment":39,"react/lib/invariant":42}],12:[function(_dereq_,module,exports){
+var invariant = _dereq_('react/lib/invariant');
+var ExecutionEnvironment = _dereq_('react/lib/ExecutionEnvironment');
+var getWindowPath = _dereq_('../utils/getWindowPath');
+
+var _onChange;
+
+/**
+ * A Location that uses HTML5 history.
+ */
+var HistoryLocation = {
+
+  setup: function (onChange) {
+    invariant(
+      ExecutionEnvironment.canUseDOM,
+      'You cannot use HistoryLocation in an environment with no DOM'
+    );
+
+    _onChange = onChange;
+
+    if (window.addEventListener) {
+      window.addEventListener('popstate', _onChange, false);
+    } else {
+      window.attachEvent('popstate', _onChange);
+    }
+  },
+
+  teardown: function () {
+    if (window.removeEventListener) {
+      window.removeEventListener('popstate', _onChange, false);
+    } else {
+      window.detachEvent('popstate', _onChange);
+    }
+  },
+
+  push: function (path) {
+    window.history.pushState({ path: path }, '', path);
+    _onChange();
+  },
+
+  replace: function (path) {
+    window.history.replaceState({ path: path }, '', path);
+    _onChange();
+  },
+
+  pop: function () {
+    window.history.back();
+  },
+
+  getCurrentPath: getWindowPath,
+
+  toString: function () {
+    return '<HistoryLocation>';
   }
 
-  return object;
-}
+};
 
-module.exports = mergeProperties;
+module.exports = HistoryLocation;
 
-},{}],20:[function(_dereq_,module,exports){
-var URLStore = _dereq_('../stores/URLStore');
-var makePath = _dereq_('./makePath');
+},{"../utils/getWindowPath":23,"react/lib/ExecutionEnvironment":39,"react/lib/invariant":42}],13:[function(_dereq_,module,exports){
+var warning = _dereq_('react/lib/warning');
 
-/**
- * Transitions to the URL specified in the arguments by replacing
- * the current URL in the history stack.
- */
-function replaceWith(to, params, query) {
-  URLStore.replace(makePath(to, params, query));
-}
-
-module.exports = replaceWith;
-
-},{"../stores/URLStore":28,"./makePath":18}],21:[function(_dereq_,module,exports){
-var Promise = _dereq_('es6-promise').Promise;
+var _lastPath = null;
+var _currentPath = null;
+var _onChange;
 
 /**
- * Resolves all values in asyncState and calls the setState
- * function with new state as they resolve. Returns a promise
- * that resolves after all values are resolved.
+ * A Location that does not require a DOM.
  */
-function resolveAsyncState(asyncState, setState) {
-  if (asyncState == null)
-    return Promise.resolve();
+var MemoryLocation = {
 
-  var keys = Object.keys(asyncState);
-  
-  return Promise.all(
-    keys.map(function (key) {
-      return Promise.resolve(asyncState[key]).then(function (value) {
-        var newState = {};
-        newState[key] = value;
-        setState(newState);
-      });
-    })
-  );
-}
+  setup: function (onChange) {
+    _onChange = onChange;
+  },
 
-module.exports = resolveAsyncState;
+  push: function (path) {
+    _lastPath = _currentPath;
+    _currentPath = path;
+    _onChange();
+  },
 
-},{"es6-promise":32}],22:[function(_dereq_,module,exports){
-var URLStore = _dereq_('../stores/URLStore');
-var makePath = _dereq_('./makePath');
+  replace: function (path) {
+    _currentPath = path;
+    _onChange();
+  },
 
-/**
- * Transitions to the URL specified in the arguments by pushing
- * a new URL onto the history stack.
- */
-function transitionTo(to, params, query) {
-  URLStore.push(makePath(to, params, query));
-}
+  pop: function () {
+    warning(
+      _lastPath != null,
+      'You cannot use MemoryLocation to go back more than once'
+    );
 
-module.exports = transitionTo;
+    _currentPath = _lastPath;
+    _lastPath = null;
+    _onChange();
+  },
 
-},{"../stores/URLStore":28,"./makePath":18}],23:[function(_dereq_,module,exports){
-function withoutProperties(object, properties) {
-  var result = {};
+  getCurrentPath: function () {
+    return _currentPath || '/';
+  },
 
-  for (var property in object) {
-    if (object.hasOwnProperty(property) && !properties[property])
-      result[property] = object[property];
+  toString: function () {
+    return '<MemoryLocation>';
   }
 
-  return result;
-}
+};
 
-module.exports = withoutProperties;
+module.exports = MemoryLocation;
 
-},{}],24:[function(_dereq_,module,exports){
+},{"react/lib/warning":48}],14:[function(_dereq_,module,exports){
+var invariant = _dereq_('react/lib/invariant');
+var ExecutionEnvironment = _dereq_('react/lib/ExecutionEnvironment');
+var getWindowPath = _dereq_('../utils/getWindowPath');
+
+/**
+ * A Location that uses full page refreshes. This is used as
+ * the fallback for HistoryLocation in browsers that do not
+ * support the HTML5 history API.
+ */
+var RefreshLocation = {
+
+  setup: function () {
+    invariant(
+      ExecutionEnvironment.canUseDOM,
+      'You cannot use RefreshLocation in an environment with no DOM'
+    );
+  },
+
+  push: function (path) {
+    window.location = path;
+  },
+
+  replace: function (path) {
+    window.location.replace(path);
+  },
+
+  pop: function () {
+    window.history.back();
+  },
+
+  getCurrentPath: getWindowPath,
+
+  toString: function () {
+    return '<RefreshLocation>';
+  }
+
+};
+
+module.exports = RefreshLocation;
+
+},{"../utils/getWindowPath":23,"react/lib/ExecutionEnvironment":39,"react/lib/invariant":42}],15:[function(_dereq_,module,exports){
 var ActiveStore = _dereq_('../stores/ActiveStore');
 
 /**
@@ -1152,7 +1194,7 @@ var ActiveState = {
   },
 
   handleActiveStateChange: function () {
-    if (this.isMounted() && this.updateActiveState)
+    if (this.isMounted() && typeof this.updateActiveState === 'function')
       this.updateActiveState();
   }
 
@@ -1160,9 +1202,9 @@ var ActiveState = {
 
 module.exports = ActiveState;
 
-},{"../stores/ActiveStore":26}],25:[function(_dereq_,module,exports){
+},{"../stores/ActiveStore":17}],16:[function(_dereq_,module,exports){
 var React = (typeof window !== "undefined" ? window.React : typeof global !== "undefined" ? global.React : null);
-var resolveAsyncState = _dereq_('../helpers/resolveAsyncState');
+var resolveAsyncState = _dereq_('../utils/resolveAsyncState');
 
 /**
  * A mixin for route handler component classes that fetch at least
@@ -1257,7 +1299,7 @@ var AsyncState = {
   },
 
   componentDidMount: function () {
-    if (this.props.initialAsyncState || !this.constructor.getInitialAsyncState)
+    if (this.props.initialAsyncState || typeof this.constructor.getInitialAsyncState !== 'function')
       return;
 
     resolveAsyncState(
@@ -1270,7 +1312,18 @@ var AsyncState = {
 
 module.exports = AsyncState;
 
-},{"../helpers/resolveAsyncState":21}],26:[function(_dereq_,module,exports){
+},{"../utils/resolveAsyncState":27}],17:[function(_dereq_,module,exports){
+var EventEmitter = _dereq_('events').EventEmitter;
+
+var CHANGE_EVENT = 'change';
+var _events = new EventEmitter;
+
+_events.setMaxListeners(0);
+
+function notifyChange() {
+  _events.emit(CHANGE_EVENT);
+}
+
 var _activeRoutes = [];
 var _activeParams = {};
 var _activeQuery = {};
@@ -1299,13 +1352,6 @@ function queryIsActive(query) {
   return true;
 }
 
-var EventEmitter = _dereq_('event-emitter');
-var _events = EventEmitter();
-
-function notifyChange() {
-  _events.emit('change');
-}
-
 /**
  * The ActiveStore keeps track of which routes, URL and query parameters are
  * currently active on a page. <Link>s subscribe to the ActiveStore to know
@@ -1313,18 +1359,12 @@ function notifyChange() {
  */
 var ActiveStore = {
 
-  /**
-   * Adds a listener that will be called when this store changes.
-   */
   addChangeListener: function (listener) {
-    _events.on('change', listener);
+    _events.on(CHANGE_EVENT, listener);
   },
 
-  /**
-   * Removes the given change listener.
-   */
   removeChangeListener: function (listener) {
-    _events.off('change', listener);
+    _events.removeListener(CHANGE_EVENT, listener);
   },
 
   /**
@@ -1358,11 +1398,145 @@ var ActiveStore = {
 
 module.exports = ActiveStore;
 
-},{"event-emitter":42}],27:[function(_dereq_,module,exports){
+},{"events":30}],18:[function(_dereq_,module,exports){
+var warning = _dereq_('react/lib/warning');
+var EventEmitter = _dereq_('events').EventEmitter;
+var LocationActions = _dereq_('../actions/LocationActions');
+var LocationDispatcher = _dereq_('../dispatchers/LocationDispatcher');
+var supportsHistory = _dereq_('../utils/supportsHistory');
+var HistoryLocation = _dereq_('../locations/HistoryLocation');
+var RefreshLocation = _dereq_('../locations/RefreshLocation');
+
+var CHANGE_EVENT = 'change';
+var _events = new EventEmitter;
+
+function notifyChange() {
+  _events.emit(CHANGE_EVENT);
+}
+
+var _scrollPositions = {};
+
+function recordScrollPosition(path) {
+  _scrollPositions[path] = {
+    x: window.scrollX,
+    y: window.scrollY
+  };
+}
+
+function updateScrollPosition(path) {
+  var p = PathStore.getScrollPosition(path);
+  window.scrollTo(p.x, p.y);
+}
+
+var _location;
+
+/**
+ * The PathStore keeps track of the current URL path and manages
+ * the location strategy that is used to update the URL.
+ */
+var PathStore = {
+
+  addChangeListener: function (listener) {
+    _events.on(CHANGE_EVENT, listener);
+  },
+
+  removeChangeListener: function (listener) {
+    _events.removeListener(CHANGE_EVENT, listener);
+
+    // Automatically teardown when the last listener is removed.
+    if (EventEmitter.listenerCount(_events, CHANGE_EVENT) === 0)
+      PathStore.teardown();
+  },
+
+  setup: function (location) {
+    // When using HistoryLocation, automatically fallback
+    // to RefreshLocation in browsers that do not support
+    // the HTML5 history API.
+    if (location === HistoryLocation && !supportsHistory())
+      location = RefreshLocation;
+
+    if (_location == null) {
+      _location = location;
+
+      if (_location && typeof _location.setup === 'function')
+        _location.setup(notifyChange);
+    } else {
+      warning(
+        _location === location,
+        'Cannot use location %s, already using %s', location, _location
+      );
+    }
+  },
+
+  teardown: function () {
+    _events.removeAllListeners(CHANGE_EVENT);
+
+    if (_location && typeof _location.teardown === 'function')
+      _location.teardown();
+
+    _location = null;
+  },
+
+  /**
+   * Returns the location object currently in use.
+   */
+  getLocation: function () {
+    return _location;
+  },
+
+  /**
+   * Returns the current URL path.
+   */
+  getCurrentPath: function () {
+    return _location.getCurrentPath();
+  },
+
+  /**
+   * Returns the last known scroll position for the given path.
+   */
+  getScrollPosition: function (path) {
+    return _scrollPositions[path] || { x: 0, y: 0 };
+  },
+
+  dispatchToken: LocationDispatcher.register(function (payload) {
+    var action = payload.action;
+    var currentPath = _location.getCurrentPath();
+
+    switch (action.type) {
+      case LocationActions.PUSH:
+        if (currentPath !== action.path) {
+          recordScrollPosition(currentPath);
+          _location.push(action.path);
+        }
+        break;
+
+      case LocationActions.REPLACE:
+        if (currentPath !== action.path) {
+          recordScrollPosition(currentPath);
+          _location.replace(action.path);
+        }
+        break;
+
+      case LocationActions.POP:
+        recordScrollPosition(currentPath);
+        _location.pop();
+        break;
+
+      case LocationActions.UPDATE_SCROLL:
+        updateScrollPosition(currentPath);
+        break;
+    }
+  })
+
+};
+
+module.exports = PathStore;
+
+},{"../actions/LocationActions":1,"../dispatchers/LocationDispatcher":8,"../locations/HistoryLocation":12,"../locations/RefreshLocation":14,"../utils/supportsHistory":28,"events":30,"react/lib/warning":48}],19:[function(_dereq_,module,exports){
 var React = (typeof window !== "undefined" ? window.React : typeof global !== "undefined" ? global.React : null);
 var invariant = _dereq_('react/lib/invariant');
 var warning = _dereq_('react/lib/warning');
-var Path = _dereq_('../helpers/Path');
+var Path = _dereq_('../utils/Path');
 
 var _namedRoutes = {};
 
@@ -1387,63 +1561,122 @@ var RouteStore = {
    * from the store.
    */
   unregisterRoute: function (route) {
-    if (route.props.name)
-      delete _namedRoutes[route.props.name];
+    var props = route.props;
 
-    React.Children.forEach(route.props.children, function (child) {
-      RouteStore.unregisterRoute(child);
-    });
+    if (props.name)
+      delete _namedRoutes[props.name];
+
+    React.Children.forEach(props.children, RouteStore.unregisterRoute);
   },
 
   /**
    * Registers a <Route> and all of its children with the store. Also,
    * does some normalization and validation on route props.
    */
-  registerRoute: function (route, _parentRoute) {
-    // Make sure the <Route>'s path begins with a slash. Default to its name.
-    // We can't do this in getDefaultProps because it may not be called on
-    // <Route>s that are never actually mounted.
-    if (route.props.path || route.props.name) {
-      route.props.path = Path.normalize(route.props.path || route.props.name);
-    } else {
-      route.props.path = '/';
-    }
+  registerRoute: function (route, parentRoute) {
+    // Note: parentRoute may be a <Route> _or_ a <Routes>.
+    var props = route.props;
 
-    // Make sure the <Route> has a valid React component for a handler.
     invariant(
-      React.isValidClass(route.props.handler),
-      'The handler for Route "' + (route.props.name || route.props.path) + '" ' +
-      'must be a valid React component'
+      React.isValidClass(props.handler),
+      'The handler for the "%s" route must be a valid React class',
+      props.name || props.path
     );
 
-    // Make sure the <Route> has all params that its parent needs.
-    if (_parentRoute) {
-      var paramNames = Path.extractParamNames(route.props.path);
+    var parentPath = (parentRoute && parentRoute.props.path) || '/';
 
-      Path.extractParamNames(_parentRoute.props.path).forEach(function (paramName) {
+    if ((props.path || props.name) && !props.isDefault && !props.catchAll) {
+      var path = props.path || props.name;
+
+      // Relative paths extend their parent.
+      if (!Path.isAbsolute(path))
+        path = Path.join(parentPath, path);
+
+      props.path = Path.normalize(path);
+    } else {
+      props.path = parentPath;
+
+      if (props.catchAll)
+        props.path += '*';
+    }
+
+    props.paramNames = Path.extractParamNames(props.path);
+
+    // Make sure the route's path has all params its parent needs.
+    if (parentRoute && Array.isArray(parentRoute.props.paramNames)) {
+      parentRoute.props.paramNames.forEach(function (paramName) {
         invariant(
-          paramNames.indexOf(paramName) !== -1,
-          'The nested route path "' + route.props.path + '" is missing the "' + paramName + '" ' +
-          'parameter of its parent path "' + _parentRoute.props.path + '"'
+          props.paramNames.indexOf(paramName) !== -1,
+          'The nested route path "%s" is missing the "%s" parameter of its parent path "%s"',
+          props.path, paramName, parentRoute.props.path
         );
       });
     }
 
-    // Make sure the <Route> can be looked up by <Link>s.
-    if (route.props.name) {
-      var existingRoute = _namedRoutes[route.props.name];
+    // Make sure the route can be looked up by <Link>s.
+    if (props.name) {
+      var existingRoute = _namedRoutes[props.name];
 
       invariant(
         !existingRoute || route === existingRoute,
-        'You cannot use the name "' + route.props.name + '" for more than one route'
+        'You cannot use the name "%s" for more than one route',
+        props.name
       );
 
-      _namedRoutes[route.props.name] = route;
+      _namedRoutes[props.name] = route;
     }
 
-    React.Children.forEach(route.props.children, function (child) {
-      RouteStore.registerRoute(child, route);
+    if (props.catchAll) {
+      invariant(
+        parentRoute,
+        '<NotFoundRoute> must have a parent <Route>'
+      );
+
+      invariant(
+        parentRoute.props.notFoundRoute == null,
+        'You may not have more than one <NotFoundRoute> per <Route>'
+      );
+
+      parentRoute.props.notFoundRoute = route;
+
+      return null;
+    }
+
+    if (props.isDefault) {
+      invariant(
+        parentRoute,
+        '<DefaultRoute> must have a parent <Route>'
+      );
+
+      invariant(
+        parentRoute.props.defaultRoute == null,
+        'You may not have more than one <DefaultRoute> per <Route>'
+      );
+
+      parentRoute.props.defaultRoute = route;
+
+      return null;
+    }
+
+    // Make sure children is an array.
+    props.children = RouteStore.registerChildren(props.children, route);
+
+    return route;
+  },
+
+  /**
+   * Registers many children routes at once, always returning an array.
+   */
+  registerChildren: function (children, parentRoute) {
+    var routes = [];
+
+    React.Children.forEach(children, function (child) {
+      // Exclude <DefaultRoute>s.
+      if (child = RouteStore.registerRoute(child, parentRoute))
+        routes.push(child);
     });
+
+    return routes;
   },
 
   /**
@@ -1457,207 +1690,314 @@ var RouteStore = {
 
 module.exports = RouteStore;
 
-},{"../helpers/Path":14,"react/lib/invariant":60,"react/lib/warning":61}],28:[function(_dereq_,module,exports){
-var ExecutionEnvironment = _dereq_('react/lib/ExecutionEnvironment');
+},{"../utils/Path":20,"react/lib/invariant":42,"react/lib/warning":48}],20:[function(_dereq_,module,exports){
 var invariant = _dereq_('react/lib/invariant');
-var warning = _dereq_('react/lib/warning');
+var merge = _dereq_('qs/lib/utils').merge;
+var qs = _dereq_('qs');
 
-var _location;
-var _currentPath = '/';
-var _lastPath = null;
-
-function getWindowChangeEvent(location) {
-  if (location === 'history')
-    return 'popstate';
-
-  return window.addEventListener ? 'hashchange' : 'onhashchange';
+function encodeURL(url) {
+  return encodeURIComponent(url).replace(/%20/g, '+');
 }
 
-function getWindowPath() {
-  return window.location.pathname + window.location.search;
+function decodeURL(url) {
+  return decodeURIComponent(url.replace(/\+/g, ' '));
 }
 
-var EventEmitter = _dereq_('event-emitter');
-var _events = EventEmitter();
-
-function notifyChange() {
-  _events.emit('change');
+function encodeURLPath(path) {
+  return String(path).split('/').map(encodeURL).join('/');
 }
 
-/**
- * The URLStore keeps track of the current URL. In DOM environments, it may be
- * attached to window.location to automatically sync with the URL in a browser's
- * location bar. <Route>s subscribe to the URLStore to know when the URL changes.
- */
-var URLStore = {
+var paramMatcher = /:([a-zA-Z_$][a-zA-Z0-9_$]*)|[*.()\[\]\\+|{}^$]/g;
+var queryMatcher = /\?(.+)/;
+
+var _compiledPatterns = {};
+
+function compilePattern(pattern) {
+  if (!(pattern in _compiledPatterns)) {
+    var paramNames = [];
+    var source = pattern.replace(paramMatcher, function (match, paramName) {
+      if (paramName) {
+        paramNames.push(paramName);
+        return '([^./?#]+)';
+      } else if (match === '*') {
+        paramNames.push('splat');
+        return '(.*?)';
+      } else {
+        return '\\' + match;
+      }
+    });
+
+    _compiledPatterns[pattern] = {
+      matcher: new RegExp('^' + source + '$', 'i'),
+      paramNames: paramNames
+    };
+  }
+
+  return _compiledPatterns[pattern];
+}
+
+var Path = {
 
   /**
-   * Adds a listener that will be called when this store changes.
+   * Returns an array of the names of all parameters in the given pattern.
    */
-  addChangeListener: function (listener) {
-    _events.on('change', listener);
+  extractParamNames: function (pattern) {
+    return compilePattern(pattern).paramNames;
   },
 
   /**
-   * Removes the given change listener.
+   * Extracts the portions of the given URL path that match the given pattern
+   * and returns an object of param name => value pairs. Returns null if the
+   * pattern does not match the given path.
    */
-  removeChangeListener: function (listener) {
-    _events.off('change', listener);
+  extractParams: function (pattern, path) {
+    var object = compilePattern(pattern);
+    var match = decodeURL(path).match(object.matcher);
+
+    if (!match)
+      return null;
+
+    var params = {};
+
+    object.paramNames.forEach(function (paramName, index) {
+      params[paramName] = match[index + 1];
+    });
+
+    return params;
   },
 
   /**
-   * Returns the type of navigation that is currently being used.
+   * Returns a version of the given route path with params interpolated. Throws
+   * if there is a dynamic segment of the route path for which there is no param.
    */
-  getLocation: function () {
-    return _location || 'hash';
-  },
+  injectParams: function (pattern, params) {
+    params = params || {};
 
-  /**
-   * Returns the value of the current URL path.
-   */
-  getCurrentPath: function () {
-    if (_location === 'history' || _location === 'disabledHistory')
-      return getWindowPath();
+    var splatIndex = 0;
 
-    if (_location === 'hash')
-      return window.location.hash.substr(1);
+    return pattern.replace(paramMatcher, function (match, paramName) {
+      paramName = paramName || 'splat';
 
-    return _currentPath;
-  },
-
-  /**
-   * Pushes the given path onto the browser navigation stack.
-   */
-  push: function (path) {
-    if (path === this.getCurrentPath())
-      return;
-
-    if (_location === 'disabledHistory')
-      return window.location = path;
-
-    if (_location === 'history') {
-      window.history.pushState({ path: path }, '', path);
-      notifyChange();
-    } else if (_location === 'hash') {
-      window.location.hash = path;
-    } else {
-      _lastPath = _currentPath;
-      _currentPath = path;
-      notifyChange();
-    }
-  },
-
-  /**
-   * Replaces the current URL path with the given path without adding an entry
-   * to the browser's history.
-   */
-  replace: function (path) {
-    if (_location === 'disabledHistory') {
-      window.location.replace(path);
-    } else if (_location === 'history') {
-      window.history.replaceState({ path: path }, '', path);
-      notifyChange();
-    } else if (_location === 'hash') {
-      window.location.replace(getWindowPath() + '#' + path);
-    } else {
-      _currentPath = path;
-      notifyChange();
-    }
-  },
-
-  /**
-   * Reverts the URL to whatever it was before the last update.
-   */
-  back: function () {
-    if (_location != null) {
-      window.history.back();
-    } else {
       invariant(
-        _lastPath,
-        'You cannot make the URL store go back more than once when it does not use the DOM'
+        params[paramName] != null,
+        'Missing "' + paramName + '" parameter for path "' + pattern + '"'
       );
 
-      _currentPath = _lastPath;
-      _lastPath = null;
-      notifyChange();
-    }
+      var segment;
+      if (paramName === 'splat' && Array.isArray(params[paramName])) {
+        segment = params[paramName][splatIndex++];
+
+        invariant(
+          segment != null,
+          'Missing splat # ' + splatIndex + ' for path "' + pattern + '"'
+        );
+      } else {
+        segment = params[paramName];
+      }
+
+      return encodeURLPath(segment);
+    });
   },
 
   /**
-   * Returns true if the URL store has already been setup.
+   * Returns an object that is the result of parsing any query string contained
+   * in the given path, null if the path contains no query string.
    */
-  isSetup: function () {
-    return _location != null;
+  extractQuery: function (path) {
+    var match = decodeURL(path).match(queryMatcher);
+    return match && qs.parse(match[1]);
   },
 
   /**
-   * Sets up the URL store to get the value of the current path from window.location
-   * as it changes. The location argument may be either "hash" or "history".
+   * Returns a version of the given path without the query string.
    */
-  setup: function (location) {
-    invariant(
-      ExecutionEnvironment.canUseDOM,
-      'You cannot setup the URL store in an environment with no DOM'
-    );
-
-    if (_location != null) {
-      warning(
-        _location === location,
-        'The URL store was already setup using ' + _location + ' location. ' +
-        'You cannot use ' + location + ' location on the same page'
-      );
-
-      return; // Don't setup twice.
-    }
-
-    if (location === 'history' && !supportsHistory()) {
-      _location = 'disabledHistory';
-      return;
-    }
-
-    var changeEvent = getWindowChangeEvent(location);
-
-    invariant(
-      changeEvent || location === 'disabledHistory',
-      'The URL store location "' + location + '" is not valid. ' +
-      'It must be either "hash" or "history"'
-    );
-
-    _location = location;
-
-    if (location === 'hash' && window.location.hash === '')
-      URLStore.replace('/');
-
-    if (window.addEventListener) {
-      window.addEventListener(changeEvent, notifyChange, false);
-    } else {
-      window.attachEvent(changeEvent, notifyChange);
-    }
-
-    notifyChange();
+  withoutQuery: function (path) {
+    return path.replace(queryMatcher, '');
   },
 
   /**
-   * Stops listening for changes to window.location.
+   * Returns a version of the given path with the parameters in the given
+   * query merged into the query string.
    */
-  teardown: function () {
-    if (_location == null)
-      return;
+  withQuery: function (path, query) {
+    var existingQuery = Path.extractQuery(path);
 
-    var changeEvent = getWindowChangeEvent(_location);
+    if (existingQuery)
+      query = query ? merge(existingQuery, query) : existingQuery;
 
-    if (window.removeEventListener) {
-      window.removeEventListener(changeEvent, notifyChange, false);
-    } else {
-      window.detachEvent(changeEvent, notifyChange);
-    }
+    var queryString = query && qs.stringify(query);
 
-    _location = null;
-    _currentPath = '/';
+    if (queryString)
+      return Path.withoutQuery(path) + '?' + queryString;
+
+    return path;
+  },
+
+  /**
+   * Returns true if the given path is absolute.
+   */
+  isAbsolute: function (path) {
+    return path.charAt(0) === '/';
+  },
+
+  /**
+   * Returns a normalized version of the given path.
+   */
+  normalize: function (path, parentRoute) {
+    return path.replace(/^\/*/, '/');
+  },
+
+  /**
+   * Joins two URL paths together.
+   */
+  join: function (a, b) {
+    return a.replace(/\/*$/, '/') + b;
   }
 
 };
 
+module.exports = Path;
+
+},{"qs":34,"qs/lib/utils":38,"react/lib/invariant":42}],21:[function(_dereq_,module,exports){
+/**
+ * Encapsulates a redirect to the given route.
+ */
+function Redirect(to, params, query) {
+  this.to = to;
+  this.params = params;
+  this.query = query;
+}
+
+module.exports = Redirect;
+
+},{}],22:[function(_dereq_,module,exports){
+var mixInto = _dereq_('react/lib/mixInto');
+var transitionTo = _dereq_('../actions/LocationActions').transitionTo;
+var Redirect = _dereq_('./Redirect');
+
+/**
+ * Encapsulates a transition to a given path.
+ *
+ * The willTransitionTo and willTransitionFrom handlers receive
+ * an instance of this class as their first argument.
+ */
+function Transition(path) {
+  this.path = path;
+  this.abortReason = null;
+  this.isAborted = false;
+}
+
+mixInto(Transition, {
+
+  abort: function (reason) {
+    this.abortReason = reason;
+    this.isAborted = true;
+  },
+
+  redirect: function (to, params, query) {
+    this.abort(new Redirect(to, params, query));
+  },
+
+  retry: function () {
+    transitionTo(this.path);
+  }
+
+});
+
+module.exports = Transition;
+
+},{"../actions/LocationActions":1,"./Redirect":21,"react/lib/mixInto":47}],23:[function(_dereq_,module,exports){
+/**
+ * Returns the current URL path from `window.location`, including query string
+ */
+function getWindowPath() {
+  return window.location.pathname + window.location.search;
+}
+
+module.exports = getWindowPath;
+
+
+},{}],24:[function(_dereq_,module,exports){
+module.exports = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
+
+},{}],25:[function(_dereq_,module,exports){
+var HashLocation = _dereq_('../locations/HashLocation');
+var PathStore = _dereq_('../stores/PathStore');
+var makePath = _dereq_('./makePath');
+
+/**
+ * Returns a string that may safely be used as the href of a
+ * link to the route with the given name.
+ */
+function makeHref(to, params, query) {
+  var path = makePath(to, params, query);
+
+  if (PathStore.getLocation() === HashLocation)
+    return '#' + path;
+
+  return path;
+}
+
+module.exports = makeHref;
+
+},{"../locations/HashLocation":11,"../stores/PathStore":18,"./makePath":26}],26:[function(_dereq_,module,exports){
+var invariant = _dereq_('react/lib/invariant');
+var RouteStore = _dereq_('../stores/RouteStore');
+var Path = _dereq_('./Path');
+
+/**
+ * Returns an absolute URL path created from the given route name, URL
+ * parameters, and query values.
+ */
+function makePath(to, params, query) {
+  var path;
+  if (Path.isAbsolute(to)) {
+    path = Path.normalize(to);
+  } else {
+    var route = RouteStore.getRouteByName(to);
+
+    invariant(
+      route,
+      'Unable to find a route named "' + to + '". Make sure you have ' +
+      'a <Route name="' + to + '"> defined somewhere in your routes'
+    );
+
+    path = route.props.path;
+  }
+
+  return Path.withQuery(Path.injectParams(path, params), query);
+}
+
+module.exports = makePath;
+
+},{"../stores/RouteStore":19,"./Path":20,"react/lib/invariant":42}],27:[function(_dereq_,module,exports){
+var Promise = _dereq_('when/lib/Promise');
+
+/**
+ * Resolves all values in asyncState and calls the setState
+ * function with new state as they resolve. Returns a promise
+ * that resolves after all values are resolved.
+ */
+function resolveAsyncState(asyncState, setState) {
+  if (asyncState == null)
+    return Promise.resolve();
+
+  var keys = Object.keys(asyncState);
+  
+  return Promise.all(
+    keys.map(function (key) {
+      return Promise.resolve(asyncState[key]).then(function (value) {
+        var newState = {};
+        newState[key] = value;
+        setState(newState);
+      });
+    })
+  );
+}
+
+module.exports = resolveAsyncState;
+
+},{"when/lib/Promise":49}],28:[function(_dereq_,module,exports){
 function supportsHistory() {
   /*! taken from modernizr
    * https://github.com/Modernizr/Modernizr/blob/master/LICENSE
@@ -1673,93 +2013,21 @@ function supportsHistory() {
   return (window.history && 'pushState' in window.history);
 }
 
-module.exports = URLStore;
+module.exports = supportsHistory;
 
-},{"event-emitter":42,"react/lib/ExecutionEnvironment":57,"react/lib/invariant":60,"react/lib/warning":61}],29:[function(_dereq_,module,exports){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+},{}],29:[function(_dereq_,module,exports){
+function withoutProperties(object, properties) {
+  var result = {};
 
-'use strict';
+  for (var property in object) {
+    if (object.hasOwnProperty(property) && !properties[property])
+      result[property] = object[property];
+  }
 
-// If obj.hasOwnProperty has been overridden, then calling
-// obj.hasOwnProperty(prop) will break.
-// See: https://github.com/joyent/node/issues/1707
-function hasOwnProperty(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
+  return result;
 }
 
-module.exports = function(qs, sep, eq, options) {
-  sep = sep || '&';
-  eq = eq || '=';
-  var obj = {};
-
-  if (typeof qs !== 'string' || qs.length === 0) {
-    return obj;
-  }
-
-  var regexp = /\+/g;
-  qs = qs.split(sep);
-
-  var maxKeys = 1000;
-  if (options && typeof options.maxKeys === 'number') {
-    maxKeys = options.maxKeys;
-  }
-
-  var len = qs.length;
-  // maxKeys <= 0 means that we should not limit keys count
-  if (maxKeys > 0 && len > maxKeys) {
-    len = maxKeys;
-  }
-
-  for (var i = 0; i < len; ++i) {
-    var x = qs[i].replace(regexp, '%20'),
-        idx = x.indexOf(eq),
-        kstr, vstr, k, v;
-
-    if (idx >= 0) {
-      kstr = x.substr(0, idx);
-      vstr = x.substr(idx + 1);
-    } else {
-      kstr = x;
-      vstr = '';
-    }
-
-    k = decodeURIComponent(kstr);
-    v = decodeURIComponent(vstr);
-
-    if (!hasOwnProperty(obj, k)) {
-      obj[k] = v;
-    } else if (isArray(obj[k])) {
-      obj[k].push(v);
-    } else {
-      obj[k] = [obj[k], v];
-    }
-  }
-
-  return obj;
-};
-
-var isArray = Array.isArray || function (xs) {
-  return Object.prototype.toString.call(xs) === '[object Array]';
-};
+module.exports = withoutProperties;
 
 },{}],30:[function(_dereq_,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
@@ -1783,1024 +2051,984 @@ var isArray = Array.isArray || function (xs) {
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-'use strict';
+function EventEmitter() {
+  this._events = this._events || {};
+  this._maxListeners = this._maxListeners || undefined;
+}
+module.exports = EventEmitter;
 
-var stringifyPrimitive = function(v) {
-  switch (typeof v) {
-    case 'string':
-      return v;
+// Backwards-compat with node 0.10.x
+EventEmitter.EventEmitter = EventEmitter;
 
-    case 'boolean':
-      return v ? 'true' : 'false';
+EventEmitter.prototype._events = undefined;
+EventEmitter.prototype._maxListeners = undefined;
 
-    case 'number':
-      return isFinite(v) ? v : '';
+// By default EventEmitters will print a warning if more than 10 listeners are
+// added to it. This is a useful default which helps finding memory leaks.
+EventEmitter.defaultMaxListeners = 10;
 
-    default:
-      return '';
-  }
+// Obviously not all Emitters should be limited to 10. This function allows
+// that to be increased. Set to zero for unlimited.
+EventEmitter.prototype.setMaxListeners = function(n) {
+  if (!isNumber(n) || n < 0 || isNaN(n))
+    throw TypeError('n must be a positive number');
+  this._maxListeners = n;
+  return this;
 };
 
-module.exports = function(obj, sep, eq, name) {
-  sep = sep || '&';
-  eq = eq || '=';
-  if (obj === null) {
-    obj = undefined;
-  }
+EventEmitter.prototype.emit = function(type) {
+  var er, handler, len, args, i, listeners;
 
-  if (typeof obj === 'object') {
-    return map(objectKeys(obj), function(k) {
-      var ks = encodeURIComponent(stringifyPrimitive(k)) + eq;
-      if (isArray(obj[k])) {
-        return map(obj[k], function(v) {
-          return ks + encodeURIComponent(stringifyPrimitive(v));
-        }).join(sep);
+  if (!this._events)
+    this._events = {};
+
+  // If there is no 'error' event listener then throw.
+  if (type === 'error') {
+    if (!this._events.error ||
+        (isObject(this._events.error) && !this._events.error.length)) {
+      er = arguments[1];
+      if (er instanceof Error) {
+        throw er; // Unhandled 'error' event
       } else {
-        return ks + encodeURIComponent(stringifyPrimitive(obj[k]));
+        throw TypeError('Uncaught, unspecified "error" event.');
       }
-    }).join(sep);
-
+      return false;
+    }
   }
 
-  if (!name) return '';
-  return encodeURIComponent(stringifyPrimitive(name)) + eq +
-         encodeURIComponent(stringifyPrimitive(obj));
-};
+  handler = this._events[type];
 
-var isArray = Array.isArray || function (xs) {
-  return Object.prototype.toString.call(xs) === '[object Array]';
-};
+  if (isUndefined(handler))
+    return false;
 
-function map (xs, f) {
-  if (xs.map) return xs.map(f);
-  var res = [];
-  for (var i = 0; i < xs.length; i++) {
-    res.push(f(xs[i], i));
+  if (isFunction(handler)) {
+    switch (arguments.length) {
+      // fast cases
+      case 1:
+        handler.call(this);
+        break;
+      case 2:
+        handler.call(this, arguments[1]);
+        break;
+      case 3:
+        handler.call(this, arguments[1], arguments[2]);
+        break;
+      // slower
+      default:
+        len = arguments.length;
+        args = new Array(len - 1);
+        for (i = 1; i < len; i++)
+          args[i - 1] = arguments[i];
+        handler.apply(this, args);
+    }
+  } else if (isObject(handler)) {
+    len = arguments.length;
+    args = new Array(len - 1);
+    for (i = 1; i < len; i++)
+      args[i - 1] = arguments[i];
+
+    listeners = handler.slice();
+    len = listeners.length;
+    for (i = 0; i < len; i++)
+      listeners[i].apply(this, args);
   }
-  return res;
+
+  return true;
+};
+
+EventEmitter.prototype.addListener = function(type, listener) {
+  var m;
+
+  if (!isFunction(listener))
+    throw TypeError('listener must be a function');
+
+  if (!this._events)
+    this._events = {};
+
+  // To avoid recursion in the case that type === "newListener"! Before
+  // adding it to the listeners, first emit "newListener".
+  if (this._events.newListener)
+    this.emit('newListener', type,
+              isFunction(listener.listener) ?
+              listener.listener : listener);
+
+  if (!this._events[type])
+    // Optimize the case of one listener. Don't need the extra array object.
+    this._events[type] = listener;
+  else if (isObject(this._events[type]))
+    // If we've already got an array, just append.
+    this._events[type].push(listener);
+  else
+    // Adding the second element, need to change to array.
+    this._events[type] = [this._events[type], listener];
+
+  // Check for listener leak
+  if (isObject(this._events[type]) && !this._events[type].warned) {
+    var m;
+    if (!isUndefined(this._maxListeners)) {
+      m = this._maxListeners;
+    } else {
+      m = EventEmitter.defaultMaxListeners;
+    }
+
+    if (m && m > 0 && this._events[type].length > m) {
+      this._events[type].warned = true;
+      console.error('(node) warning: possible EventEmitter memory ' +
+                    'leak detected. %d listeners added. ' +
+                    'Use emitter.setMaxListeners() to increase limit.',
+                    this._events[type].length);
+      if (typeof console.trace === 'function') {
+        // not supported in IE 10
+        console.trace();
+      }
+    }
+  }
+
+  return this;
+};
+
+EventEmitter.prototype.on = EventEmitter.prototype.addListener;
+
+EventEmitter.prototype.once = function(type, listener) {
+  if (!isFunction(listener))
+    throw TypeError('listener must be a function');
+
+  var fired = false;
+
+  function g() {
+    this.removeListener(type, g);
+
+    if (!fired) {
+      fired = true;
+      listener.apply(this, arguments);
+    }
+  }
+
+  g.listener = listener;
+  this.on(type, g);
+
+  return this;
+};
+
+// emits a 'removeListener' event iff the listener was removed
+EventEmitter.prototype.removeListener = function(type, listener) {
+  var list, position, length, i;
+
+  if (!isFunction(listener))
+    throw TypeError('listener must be a function');
+
+  if (!this._events || !this._events[type])
+    return this;
+
+  list = this._events[type];
+  length = list.length;
+  position = -1;
+
+  if (list === listener ||
+      (isFunction(list.listener) && list.listener === listener)) {
+    delete this._events[type];
+    if (this._events.removeListener)
+      this.emit('removeListener', type, listener);
+
+  } else if (isObject(list)) {
+    for (i = length; i-- > 0;) {
+      if (list[i] === listener ||
+          (list[i].listener && list[i].listener === listener)) {
+        position = i;
+        break;
+      }
+    }
+
+    if (position < 0)
+      return this;
+
+    if (list.length === 1) {
+      list.length = 0;
+      delete this._events[type];
+    } else {
+      list.splice(position, 1);
+    }
+
+    if (this._events.removeListener)
+      this.emit('removeListener', type, listener);
+  }
+
+  return this;
+};
+
+EventEmitter.prototype.removeAllListeners = function(type) {
+  var key, listeners;
+
+  if (!this._events)
+    return this;
+
+  // not listening for removeListener, no need to emit
+  if (!this._events.removeListener) {
+    if (arguments.length === 0)
+      this._events = {};
+    else if (this._events[type])
+      delete this._events[type];
+    return this;
+  }
+
+  // emit removeListener for all listeners on all events
+  if (arguments.length === 0) {
+    for (key in this._events) {
+      if (key === 'removeListener') continue;
+      this.removeAllListeners(key);
+    }
+    this.removeAllListeners('removeListener');
+    this._events = {};
+    return this;
+  }
+
+  listeners = this._events[type];
+
+  if (isFunction(listeners)) {
+    this.removeListener(type, listeners);
+  } else {
+    // LIFO order
+    while (listeners.length)
+      this.removeListener(type, listeners[listeners.length - 1]);
+  }
+  delete this._events[type];
+
+  return this;
+};
+
+EventEmitter.prototype.listeners = function(type) {
+  var ret;
+  if (!this._events || !this._events[type])
+    ret = [];
+  else if (isFunction(this._events[type]))
+    ret = [this._events[type]];
+  else
+    ret = this._events[type].slice();
+  return ret;
+};
+
+EventEmitter.listenerCount = function(emitter, type) {
+  var ret;
+  if (!emitter._events || !emitter._events[type])
+    ret = 0;
+  else if (isFunction(emitter._events[type]))
+    ret = 1;
+  else
+    ret = emitter._events[type].length;
+  return ret;
+};
+
+function isFunction(arg) {
+  return typeof arg === 'function';
 }
 
-var objectKeys = Object.keys || function (obj) {
-  var res = [];
-  for (var key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) res.push(key);
-  }
-  return res;
-};
+function isNumber(arg) {
+  return typeof arg === 'number';
+}
+
+function isObject(arg) {
+  return typeof arg === 'object' && arg !== null;
+}
+
+function isUndefined(arg) {
+  return arg === void 0;
+}
 
 },{}],31:[function(_dereq_,module,exports){
-'use strict';
+/**
+ * Copyright (c) 2014, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
 
-exports.decode = exports.parse = _dereq_('./decode');
-exports.encode = exports.stringify = _dereq_('./encode');
+module.exports.Dispatcher = _dereq_('./lib/Dispatcher')
 
-},{"./decode":29,"./encode":30}],32:[function(_dereq_,module,exports){
-"use strict";
-var Promise = _dereq_("./promise/promise").Promise;
-var polyfill = _dereq_("./promise/polyfill").polyfill;
-exports.Promise = Promise;
-exports.polyfill = polyfill;
-},{"./promise/polyfill":36,"./promise/promise":37}],33:[function(_dereq_,module,exports){
-"use strict";
-/* global toString */
+},{"./lib/Dispatcher":32}],32:[function(_dereq_,module,exports){
+/*
+ * Copyright (c) 2014, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule Dispatcher
+ * @typechecks
+ */
 
-var isArray = _dereq_("./utils").isArray;
-var isFunction = _dereq_("./utils").isFunction;
+var invariant = _dereq_('./invariant');
+
+var _lastID = 1;
+var _prefix = 'ID_';
 
 /**
-  Returns a promise that is fulfilled when all the given promises have been
-  fulfilled, or rejected if any of them become rejected. The return promise
-  is fulfilled with an array that gives all the values in the order they were
-  passed in the `promises` array argument.
+ * Dispatcher is used to broadcast payloads to registered callbacks. This is
+ * different from generic pub-sub systems in two ways:
+ *
+ *   1) Callbacks are not subscribed to particular events. Every payload is
+ *      dispatched to every registered callback.
+ *   2) Callbacks can be deferred in whole or part until other callbacks have
+ *      been executed.
+ *
+ * For example, consider this hypothetical flight destination form, which
+ * selects a default city when a country is selected:
+ *
+ *   var flightDispatcher = new Dispatcher();
+ *
+ *   // Keeps track of which country is selected
+ *   var CountryStore = {country: null};
+ *
+ *   // Keeps track of which city is selected
+ *   var CityStore = {city: null};
+ *
+ *   // Keeps track of the base flight price of the selected city
+ *   var FlightPriceStore = {price: null}
+ *
+ * When a user changes the selected city, we dispatch the payload:
+ *
+ *   flightDispatcher.dispatch({
+ *     actionType: 'city-update',
+ *     selectedCity: 'paris'
+ *   });
+ *
+ * This payload is digested by `CityStore`:
+ *
+ *   flightDispatcher.register(function(payload) {
+ *     if (payload.actionType === 'city-update') {
+ *       CityStore.city = payload.selectedCity;
+ *     }
+ *   });
+ *
+ * When the user selects a country, we dispatch the payload:
+ *
+ *   flightDispatcher.dispatch({
+ *     actionType: 'country-update',
+ *     selectedCountry: 'australia'
+ *   });
+ *
+ * This payload is digested by both stores:
+ *
+ *    CountryStore.dispatchToken = flightDispatcher.register(function(payload) {
+ *     if (payload.actionType === 'country-update') {
+ *       CountryStore.country = payload.selectedCountry;
+ *     }
+ *   });
+ *
+ * When the callback to update `CountryStore` is registered, we save a reference
+ * to the returned token. Using this token with `waitFor()`, we can guarantee
+ * that `CountryStore` is updated before the callback that updates `CityStore`
+ * needs to query its data.
+ *
+ *   CityStore.dispatchToken = flightDispatcher.register(function(payload) {
+ *     if (payload.actionType === 'country-update') {
+ *       // `CountryStore.country` may not be updated.
+ *       flightDispatcher.waitFor([CountryStore.dispatchToken]);
+ *       // `CountryStore.country` is now guaranteed to be updated.
+ *
+ *       // Select the default city for the new country
+ *       CityStore.city = getDefaultCityForCountry(CountryStore.country);
+ *     }
+ *   });
+ *
+ * The usage of `waitFor()` can be chained, for example:
+ *
+ *   FlightPriceStore.dispatchToken =
+ *     flightDispatcher.register(function(payload) {
+ *       switch (payload.actionType) {
+ *         case 'country-update':
+ *           flightDispatcher.waitFor([CityStore.dispatchToken]);
+ *           FlightPriceStore.price =
+ *             getFlightPriceStore(CountryStore.country, CityStore.city);
+ *           break;
+ *
+ *         case 'city-update':
+ *           FlightPriceStore.price =
+ *             FlightPriceStore(CountryStore.country, CityStore.city);
+ *           break;
+ *     }
+ *   });
+ *
+ * The `country-update` payload will be guaranteed to invoke the stores'
+ * registered callbacks in order: `CountryStore`, `CityStore`, then
+ * `FlightPriceStore`.
+ */
 
-  Example:
-
-  ```javascript
-  var promise1 = RSVP.resolve(1);
-  var promise2 = RSVP.resolve(2);
-  var promise3 = RSVP.resolve(3);
-  var promises = [ promise1, promise2, promise3 ];
-
-  RSVP.all(promises).then(function(array){
-    // The array here would be [ 1, 2, 3 ];
-  });
-  ```
-
-  If any of the `promises` given to `RSVP.all` are rejected, the first promise
-  that is rejected will be given as an argument to the returned promises's
-  rejection handler. For example:
-
-  Example:
-
-  ```javascript
-  var promise1 = RSVP.resolve(1);
-  var promise2 = RSVP.reject(new Error("2"));
-  var promise3 = RSVP.reject(new Error("3"));
-  var promises = [ promise1, promise2, promise3 ];
-
-  RSVP.all(promises).then(function(array){
-    // Code here never runs because there are rejected promises!
-  }, function(error) {
-    // error.message === "2"
-  });
-  ```
-
-  @method all
-  @for RSVP
-  @param {Array} promises
-  @param {String} label
-  @return {Promise} promise that is fulfilled when all `promises` have been
-  fulfilled, or rejected if any of them become rejected.
-*/
-function all(promises) {
-  /*jshint validthis:true */
-  var Promise = this;
-
-  if (!isArray(promises)) {
-    throw new TypeError('You must pass an array to all.');
+  function Dispatcher() {"use strict";
+    this.$Dispatcher_callbacks = {};
+    this.$Dispatcher_isPending = {};
+    this.$Dispatcher_isHandled = {};
+    this.$Dispatcher_isDispatching = false;
+    this.$Dispatcher_pendingPayload = null;
   }
 
-  return new Promise(function(resolve, reject) {
-    var results = [], remaining = promises.length,
-    promise;
+  /**
+   * Registers a callback to be invoked with every dispatched payload. Returns
+   * a token that can be used with `waitFor()`.
+   *
+   * @param {function} callback
+   * @return {string}
+   */
+  Dispatcher.prototype.register=function(callback) {"use strict";
+    var id = _prefix + _lastID++;
+    this.$Dispatcher_callbacks[id] = callback;
+    return id;
+  };
 
-    if (remaining === 0) {
-      resolve([]);
-    }
+  /**
+   * Removes a callback based on its token.
+   *
+   * @param {string} id
+   */
+  Dispatcher.prototype.unregister=function(id) {"use strict";
+    invariant(
+      this.$Dispatcher_callbacks[id],
+      'Dispatcher.unregister(...): `%s` does not map to a registered callback.',
+      id
+    );
+    delete this.$Dispatcher_callbacks[id];
+  };
 
-    function resolver(index) {
-      return function(value) {
-        resolveAll(index, value);
-      };
-    }
-
-    function resolveAll(index, value) {
-      results[index] = value;
-      if (--remaining === 0) {
-        resolve(results);
+  /**
+   * Waits for the callbacks specified to be invoked before continuing execution
+   * of the current callback. This method should only be used by a callback in
+   * response to a dispatched payload.
+   *
+   * @param {array<string>} ids
+   */
+  Dispatcher.prototype.waitFor=function(ids) {"use strict";
+    invariant(
+      this.$Dispatcher_isDispatching,
+      'Dispatcher.waitFor(...): Must be invoked while dispatching.'
+    );
+    for (var ii = 0; ii < ids.length; ii++) {
+      var id = ids[ii];
+      if (this.$Dispatcher_isPending[id]) {
+        invariant(
+          this.$Dispatcher_isHandled[id],
+          'Dispatcher.waitFor(...): Circular dependency detected while ' +
+          'waiting for `%s`.',
+          id
+        );
+        continue;
       }
+      invariant(
+        this.$Dispatcher_callbacks[id],
+        'Dispatcher.waitFor(...): `%s` does not map to a registered callback.',
+        id
+      );
+      this.$Dispatcher_invokeCallback(id);
     }
-
-    for (var i = 0; i < promises.length; i++) {
-      promise = promises[i];
-
-      if (promise && isFunction(promise.then)) {
-        promise.then(resolver(i), reject);
-      } else {
-        resolveAll(i, promise);
-      }
-    }
-  });
-}
-
-exports.all = all;
-},{"./utils":41}],34:[function(_dereq_,module,exports){
-"use strict";
-var browserGlobal = (typeof window !== 'undefined') ? window : {};
-var BrowserMutationObserver = browserGlobal.MutationObserver || browserGlobal.WebKitMutationObserver;
-var local = (typeof global !== 'undefined') ? global : (this === undefined? window:this);
-
-// node
-function useNextTick() {
-  return function() {
-    process.nextTick(flush);
   };
-}
 
-function useMutationObserver() {
-  var iterations = 0;
-  var observer = new BrowserMutationObserver(flush);
-  var node = document.createTextNode('');
-  observer.observe(node, { characterData: true });
-
-  return function() {
-    node.data = (iterations = ++iterations % 2);
-  };
-}
-
-function useSetTimeout() {
-  return function() {
-    local.setTimeout(flush, 1);
-  };
-}
-
-var queue = [];
-function flush() {
-  for (var i = 0; i < queue.length; i++) {
-    var tuple = queue[i];
-    var callback = tuple[0], arg = tuple[1];
-    callback(arg);
-  }
-  queue = [];
-}
-
-var scheduleFlush;
-
-// Decide what async method to use to triggering processing of queued callbacks:
-if (typeof process !== 'undefined' && {}.toString.call(process) === '[object process]') {
-  scheduleFlush = useNextTick();
-} else if (BrowserMutationObserver) {
-  scheduleFlush = useMutationObserver();
-} else {
-  scheduleFlush = useSetTimeout();
-}
-
-function asap(callback, arg) {
-  var length = queue.push([callback, arg]);
-  if (length === 1) {
-    // If length is 1, that means that we need to schedule an async flush.
-    // If additional callbacks are queued before the queue is flushed, they
-    // will be processed by this flush that we are scheduling.
-    scheduleFlush();
-  }
-}
-
-exports.asap = asap;
-},{}],35:[function(_dereq_,module,exports){
-"use strict";
-var config = {
-  instrument: false
-};
-
-function configure(name, value) {
-  if (arguments.length === 2) {
-    config[name] = value;
-  } else {
-    return config[name];
-  }
-}
-
-exports.config = config;
-exports.configure = configure;
-},{}],36:[function(_dereq_,module,exports){
-"use strict";
-/*global self*/
-var RSVPPromise = _dereq_("./promise").Promise;
-var isFunction = _dereq_("./utils").isFunction;
-
-function polyfill() {
-  var local;
-
-  if (typeof global !== 'undefined') {
-    local = global;
-  } else if (typeof window !== 'undefined' && window.document) {
-    local = window;
-  } else {
-    local = self;
-  }
-
-  var es6PromiseSupport = 
-    "Promise" in local &&
-    // Some of these methods are missing from
-    // Firefox/Chrome experimental implementations
-    "resolve" in local.Promise &&
-    "reject" in local.Promise &&
-    "all" in local.Promise &&
-    "race" in local.Promise &&
-    // Older version of the spec had a resolver object
-    // as the arg rather than a function
-    (function() {
-      var resolve;
-      new local.Promise(function(r) { resolve = r; });
-      return isFunction(resolve);
-    }());
-
-  if (!es6PromiseSupport) {
-    local.Promise = RSVPPromise;
-  }
-}
-
-exports.polyfill = polyfill;
-},{"./promise":37,"./utils":41}],37:[function(_dereq_,module,exports){
-"use strict";
-var config = _dereq_("./config").config;
-var configure = _dereq_("./config").configure;
-var objectOrFunction = _dereq_("./utils").objectOrFunction;
-var isFunction = _dereq_("./utils").isFunction;
-var now = _dereq_("./utils").now;
-var all = _dereq_("./all").all;
-var race = _dereq_("./race").race;
-var staticResolve = _dereq_("./resolve").resolve;
-var staticReject = _dereq_("./reject").reject;
-var asap = _dereq_("./asap").asap;
-
-var counter = 0;
-
-config.async = asap; // default async is asap;
-
-function Promise(resolver) {
-  if (!isFunction(resolver)) {
-    throw new TypeError('You must pass a resolver function as the first argument to the promise constructor');
-  }
-
-  if (!(this instanceof Promise)) {
-    throw new TypeError("Failed to construct 'Promise': Please use the 'new' operator, this object constructor cannot be called as a function.");
-  }
-
-  this._subscribers = [];
-
-  invokeResolver(resolver, this);
-}
-
-function invokeResolver(resolver, promise) {
-  function resolvePromise(value) {
-    resolve(promise, value);
-  }
-
-  function rejectPromise(reason) {
-    reject(promise, reason);
-  }
-
-  try {
-    resolver(resolvePromise, rejectPromise);
-  } catch(e) {
-    rejectPromise(e);
-  }
-}
-
-function invokeCallback(settled, promise, callback, detail) {
-  var hasCallback = isFunction(callback),
-      value, error, succeeded, failed;
-
-  if (hasCallback) {
+  /**
+   * Dispatches a payload to all registered callbacks.
+   *
+   * @param {object} payload
+   */
+  Dispatcher.prototype.dispatch=function(payload) {"use strict";
+    invariant(
+      !this.$Dispatcher_isDispatching,
+      'Dispatch.dispatch(...): Cannot dispatch in the middle of a dispatch.'
+    );
+    this.$Dispatcher_startDispatching(payload);
     try {
-      value = callback(detail);
-      succeeded = true;
-    } catch(e) {
-      failed = true;
-      error = e;
+      for (var id in this.$Dispatcher_callbacks) {
+        if (this.$Dispatcher_isPending[id]) {
+          continue;
+        }
+        this.$Dispatcher_invokeCallback(id);
+      }
+    } finally {
+      this.$Dispatcher_stopDispatching();
     }
-  } else {
-    value = detail;
-    succeeded = true;
+  };
+
+  /**
+   * Is this Dispatcher currently dispatching.
+   *
+   * @return {boolean}
+   */
+  Dispatcher.prototype.isDispatching=function() {"use strict";
+    return this.$Dispatcher_isDispatching;
+  };
+
+  /**
+   * Call the callback stored with the given id. Also do some internal
+   * bookkeeping.
+   *
+   * @param {string} id
+   * @internal
+   */
+  Dispatcher.prototype.$Dispatcher_invokeCallback=function(id) {"use strict";
+    this.$Dispatcher_isPending[id] = true;
+    this.$Dispatcher_callbacks[id](this.$Dispatcher_pendingPayload);
+    this.$Dispatcher_isHandled[id] = true;
+  };
+
+  /**
+   * Set up bookkeeping needed when dispatching.
+   *
+   * @param {object} payload
+   * @internal
+   */
+  Dispatcher.prototype.$Dispatcher_startDispatching=function(payload) {"use strict";
+    for (var id in this.$Dispatcher_callbacks) {
+      this.$Dispatcher_isPending[id] = false;
+      this.$Dispatcher_isHandled[id] = false;
+    }
+    this.$Dispatcher_pendingPayload = payload;
+    this.$Dispatcher_isDispatching = true;
+  };
+
+  /**
+   * Clear bookkeeping used for dispatching.
+   *
+   * @internal
+   */
+  Dispatcher.prototype.$Dispatcher_stopDispatching=function() {"use strict";
+    this.$Dispatcher_pendingPayload = null;
+    this.$Dispatcher_isDispatching = false;
+  };
+
+
+module.exports = Dispatcher;
+
+},{"./invariant":33}],33:[function(_dereq_,module,exports){
+/**
+ * Copyright (c) 2014, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule invariant
+ */
+
+"use strict";
+
+/**
+ * Use invariant() to assert state which your program assumes to be true.
+ *
+ * Provide sprintf-style format (only %s is supported) and arguments
+ * to provide information about what broke and what you were
+ * expecting.
+ *
+ * The invariant message will be stripped in production, but the invariant
+ * will remain to ensure logic does not differ in production.
+ */
+
+var invariant = function(condition, format, a, b, c, d, e, f) {
+  if (false) {
+    if (format === undefined) {
+      throw new Error('invariant requires an error message argument');
+    }
   }
 
-  if (handleThenable(promise, value)) {
-    return;
-  } else if (hasCallback && succeeded) {
-    resolve(promise, value);
-  } else if (failed) {
-    reject(promise, error);
-  } else if (settled === FULFILLED) {
-    resolve(promise, value);
-  } else if (settled === REJECTED) {
-    reject(promise, value);
-  }
-}
-
-var PENDING   = void 0;
-var SEALED    = 0;
-var FULFILLED = 1;
-var REJECTED  = 2;
-
-function subscribe(parent, child, onFulfillment, onRejection) {
-  var subscribers = parent._subscribers;
-  var length = subscribers.length;
-
-  subscribers[length] = child;
-  subscribers[length + FULFILLED] = onFulfillment;
-  subscribers[length + REJECTED]  = onRejection;
-}
-
-function publish(promise, settled) {
-  var child, callback, subscribers = promise._subscribers, detail = promise._detail;
-
-  for (var i = 0; i < subscribers.length; i += 3) {
-    child = subscribers[i];
-    callback = subscribers[i + settled];
-
-    invokeCallback(settled, child, callback, detail);
-  }
-
-  promise._subscribers = null;
-}
-
-Promise.prototype = {
-  constructor: Promise,
-
-  _state: undefined,
-  _detail: undefined,
-  _subscribers: undefined,
-
-  then: function(onFulfillment, onRejection) {
-    var promise = this;
-
-    var thenPromise = new this.constructor(function() {});
-
-    if (this._state) {
-      var callbacks = arguments;
-      config.async(function invokePromiseCallback() {
-        invokeCallback(promise._state, thenPromise, callbacks[promise._state - 1], promise._detail);
-      });
+  if (!condition) {
+    var error;
+    if (format === undefined) {
+      error = new Error(
+        'Minified exception occurred; use the non-minified dev environment ' +
+        'for the full error message and additional helpful warnings.'
+      );
     } else {
-      subscribe(this, thenPromise, onFulfillment, onRejection);
+      var args = [a, b, c, d, e, f];
+      var argIndex = 0;
+      error = new Error(
+        'Invariant Violation: ' +
+        format.replace(/%s/g, function() { return args[argIndex++]; })
+      );
     }
 
-    return thenPromise;
-  },
-
-  'catch': function(onRejection) {
-    return this.then(null, onRejection);
+    error.framesToPop = 1; // we don't care about invariant's own frame
+    throw error;
   }
 };
 
-Promise.all = all;
-Promise.race = race;
-Promise.resolve = staticResolve;
-Promise.reject = staticReject;
+module.exports = invariant;
 
-function handleThenable(promise, value) {
-  var then = null,
-  resolved;
+},{}],34:[function(_dereq_,module,exports){
+module.exports = _dereq_('./lib');
 
-  try {
-    if (promise === value) {
-      throw new TypeError("A promises callback cannot return that same promise.");
+},{"./lib":35}],35:[function(_dereq_,module,exports){
+// Load modules
+
+var Stringify = _dereq_('./stringify');
+var Parse = _dereq_('./parse');
+
+
+// Declare internals
+
+var internals = {};
+
+
+module.exports = {
+    stringify: Stringify,
+    parse: Parse
+};
+
+},{"./parse":36,"./stringify":37}],36:[function(_dereq_,module,exports){
+// Load modules
+
+var Utils = _dereq_('./utils');
+
+
+// Declare internals
+
+var internals = {
+    delimiter: '&',
+    depth: 5,
+    arrayLimit: 20,
+    parameterLimit: 1000
+};
+
+
+internals.parseValues = function (str, options) {
+
+    var obj = {};
+    var parts = str.split(options.delimiter, options.parameterLimit === Infinity ? undefined : options.parameterLimit);
+
+    for (var i = 0, il = parts.length; i < il; ++i) {
+        var part = parts[i];
+        var pos = part.indexOf(']=') === -1 ? part.indexOf('=') : part.indexOf(']=') + 1;
+
+        if (pos === -1) {
+            obj[Utils.decode(part)] = '';
+        }
+        else {
+            var key = Utils.decode(part.slice(0, pos));
+            var val = Utils.decode(part.slice(pos + 1));
+
+            if (!obj[key]) {
+                obj[key] = val;
+            }
+            else {
+                obj[key] = [].concat(obj[key]).concat(val);
+            }
+        }
     }
 
-    if (objectOrFunction(value)) {
-      then = value.then;
+    return obj;
+};
 
-      if (isFunction(then)) {
-        then.call(value, function(val) {
-          if (resolved) { return true; }
-          resolved = true;
 
-          if (value !== val) {
-            resolve(promise, val);
-          } else {
-            fulfill(promise, val);
-          }
-        }, function(val) {
-          if (resolved) { return true; }
-          resolved = true;
+internals.parseObject = function (chain, val, options) {
 
-          reject(promise, val);
-        });
-
-        return true;
-      }
+    if (!chain.length) {
+        return val;
     }
-  } catch (error) {
-    if (resolved) { return true; }
-    reject(promise, error);
-    return true;
-  }
 
-  return false;
-}
+    var root = chain.shift();
 
-function resolve(promise, value) {
-  if (promise === value) {
-    fulfill(promise, value);
-  } else if (!handleThenable(promise, value)) {
-    fulfill(promise, value);
-  }
-}
-
-function fulfill(promise, value) {
-  if (promise._state !== PENDING) { return; }
-  promise._state = SEALED;
-  promise._detail = value;
-
-  config.async(publishFulfillment, promise);
-}
-
-function reject(promise, reason) {
-  if (promise._state !== PENDING) { return; }
-  promise._state = SEALED;
-  promise._detail = reason;
-
-  config.async(publishRejection, promise);
-}
-
-function publishFulfillment(promise) {
-  publish(promise, promise._state = FULFILLED);
-}
-
-function publishRejection(promise) {
-  publish(promise, promise._state = REJECTED);
-}
-
-exports.Promise = Promise;
-},{"./all":33,"./asap":34,"./config":35,"./race":38,"./reject":39,"./resolve":40,"./utils":41}],38:[function(_dereq_,module,exports){
-"use strict";
-/* global toString */
-var isArray = _dereq_("./utils").isArray;
-
-/**
-  `RSVP.race` allows you to watch a series of promises and act as soon as the
-  first promise given to the `promises` argument fulfills or rejects.
-
-  Example:
-
-  ```javascript
-  var promise1 = new RSVP.Promise(function(resolve, reject){
-    setTimeout(function(){
-      resolve("promise 1");
-    }, 200);
-  });
-
-  var promise2 = new RSVP.Promise(function(resolve, reject){
-    setTimeout(function(){
-      resolve("promise 2");
-    }, 100);
-  });
-
-  RSVP.race([promise1, promise2]).then(function(result){
-    // result === "promise 2" because it was resolved before promise1
-    // was resolved.
-  });
-  ```
-
-  `RSVP.race` is deterministic in that only the state of the first completed
-  promise matters. For example, even if other promises given to the `promises`
-  array argument are resolved, but the first completed promise has become
-  rejected before the other promises became fulfilled, the returned promise
-  will become rejected:
-
-  ```javascript
-  var promise1 = new RSVP.Promise(function(resolve, reject){
-    setTimeout(function(){
-      resolve("promise 1");
-    }, 200);
-  });
-
-  var promise2 = new RSVP.Promise(function(resolve, reject){
-    setTimeout(function(){
-      reject(new Error("promise 2"));
-    }, 100);
-  });
-
-  RSVP.race([promise1, promise2]).then(function(result){
-    // Code here never runs because there are rejected promises!
-  }, function(reason){
-    // reason.message === "promise2" because promise 2 became rejected before
-    // promise 1 became fulfilled
-  });
-  ```
-
-  @method race
-  @for RSVP
-  @param {Array} promises array of promises to observe
-  @param {String} label optional string for describing the promise returned.
-  Useful for tooling.
-  @return {Promise} a promise that becomes fulfilled with the value the first
-  completed promises is resolved with if the first completed promise was
-  fulfilled, or rejected with the reason that the first completed promise
-  was rejected with.
-*/
-function race(promises) {
-  /*jshint validthis:true */
-  var Promise = this;
-
-  if (!isArray(promises)) {
-    throw new TypeError('You must pass an array to race.');
-  }
-  return new Promise(function(resolve, reject) {
-    var results = [], promise;
-
-    for (var i = 0; i < promises.length; i++) {
-      promise = promises[i];
-
-      if (promise && typeof promise.then === 'function') {
-        promise.then(resolve, reject);
-      } else {
-        resolve(promise);
-      }
+    var obj = {};
+    if (root === '[]') {
+        obj = [];
+        obj = obj.concat(internals.parseObject(chain, val, options));
     }
-  });
-}
+    else {
+        var cleanRoot = root[0] === '[' && root[root.length - 1] === ']' ? root.slice(1, root.length - 1) : root;
+        var index = parseInt(cleanRoot, 10);
+        if (!isNaN(index) &&
+            root !== cleanRoot &&
+            index <= options.arrayLimit) {
 
-exports.race = race;
-},{"./utils":41}],39:[function(_dereq_,module,exports){
-"use strict";
-/**
-  `RSVP.reject` returns a promise that will become rejected with the passed
-  `reason`. `RSVP.reject` is essentially shorthand for the following:
+            obj = [];
+            obj[index] = internals.parseObject(chain, val, options);
+        }
+        else {
+            obj[cleanRoot] = internals.parseObject(chain, val, options);
+        }
+    }
 
-  ```javascript
-  var promise = new RSVP.Promise(function(resolve, reject){
-    reject(new Error('WHOOPS'));
-  });
-
-  promise.then(function(value){
-    // Code here doesn't run because the promise is rejected!
-  }, function(reason){
-    // reason.message === 'WHOOPS'
-  });
-  ```
-
-  Instead of writing the above, your code now simply becomes the following:
-
-  ```javascript
-  var promise = RSVP.reject(new Error('WHOOPS'));
-
-  promise.then(function(value){
-    // Code here doesn't run because the promise is rejected!
-  }, function(reason){
-    // reason.message === 'WHOOPS'
-  });
-  ```
-
-  @method reject
-  @for RSVP
-  @param {Any} reason value that the returned promise will be rejected with.
-  @param {String} label optional string for identifying the returned promise.
-  Useful for tooling.
-  @return {Promise} a promise that will become rejected with the given
-  `reason`.
-*/
-function reject(reason) {
-  /*jshint validthis:true */
-  var Promise = this;
-
-  return new Promise(function (resolve, reject) {
-    reject(reason);
-  });
-}
-
-exports.reject = reject;
-},{}],40:[function(_dereq_,module,exports){
-"use strict";
-function resolve(value) {
-  /*jshint validthis:true */
-  if (value && typeof value === 'object' && value.constructor === this) {
-    return value;
-  }
-
-  var Promise = this;
-
-  return new Promise(function(resolve) {
-    resolve(value);
-  });
-}
-
-exports.resolve = resolve;
-},{}],41:[function(_dereq_,module,exports){
-"use strict";
-function objectOrFunction(x) {
-  return isFunction(x) || (typeof x === "object" && x !== null);
-}
-
-function isFunction(x) {
-  return typeof x === "function";
-}
-
-function isArray(x) {
-  return Object.prototype.toString.call(x) === "[object Array]";
-}
-
-// Date.now is not available in browsers < IE9
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now#Compatibility
-var now = Date.now || function() { return new Date().getTime(); };
-
-
-exports.objectOrFunction = objectOrFunction;
-exports.isFunction = isFunction;
-exports.isArray = isArray;
-exports.now = now;
-},{}],42:[function(_dereq_,module,exports){
-'use strict';
-
-var d        = _dereq_('d')
-  , callable = _dereq_('es5-ext/object/valid-callable')
-
-  , apply = Function.prototype.apply, call = Function.prototype.call
-  , create = Object.create, defineProperty = Object.defineProperty
-  , defineProperties = Object.defineProperties
-  , hasOwnProperty = Object.prototype.hasOwnProperty
-  , descriptor = { configurable: true, enumerable: false, writable: true }
-
-  , on, once, off, emit, methods, descriptors, base;
-
-on = function (type, listener) {
-	var data;
-
-	callable(listener);
-
-	if (!hasOwnProperty.call(this, '__ee__')) {
-		data = descriptor.value = create(null);
-		defineProperty(this, '__ee__', descriptor);
-		descriptor.value = null;
-	} else {
-		data = this.__ee__;
-	}
-	if (!data[type]) data[type] = listener;
-	else if (typeof data[type] === 'object') data[type].push(listener);
-	else data[type] = [data[type], listener];
-
-	return this;
+    return obj;
 };
 
-once = function (type, listener) {
-	var once, self;
 
-	callable(listener);
-	self = this;
-	on.call(this, type, once = function () {
-		off.call(self, type, once);
-		apply.call(listener, this, arguments);
-	});
+internals.parseKeys = function (key, val, options) {
 
-	once.__eeOnceListener__ = listener;
-	return this;
+    if (!key) {
+        return;
+    }
+
+    // The regex chunks
+
+    var parent = /^([^\[\]]*)/;
+    var child = /(\[[^\[\]]*\])/g;
+
+    // Get the parent
+
+    var segment = parent.exec(key);
+
+    // Don't allow them to overwrite object prototype properties
+
+    if (Object.prototype.hasOwnProperty(segment[1])) {
+        return;
+    }
+
+    // Stash the parent if it exists
+
+    var keys = [];
+    if (segment[1]) {
+        keys.push(segment[1]);
+    }
+
+    // Loop through children appending to the array until we hit depth
+
+    var i = 0;
+    while ((segment = child.exec(key)) !== null && i < options.depth) {
+
+        ++i;
+        if (!Object.prototype.hasOwnProperty(segment[1].replace(/\[|\]/g, ''))) {
+            keys.push(segment[1]);
+        }
+    }
+
+    // If there's a remainder, just add whatever is left
+
+    if (segment) {
+        keys.push('[' + key.slice(segment.index) + ']');
+    }
+
+    return internals.parseObject(keys, val, options);
 };
 
-off = function (type, listener) {
-	var data, listeners, candidate, i;
 
-	callable(listener);
+module.exports = function (str, options) {
 
-	if (!hasOwnProperty.call(this, '__ee__')) return this;
-	data = this.__ee__;
-	if (!data[type]) return this;
-	listeners = data[type];
+    if (str === '' ||
+        str === null ||
+        typeof str === 'undefined') {
 
-	if (typeof listeners === 'object') {
-		for (i = 0; (candidate = listeners[i]); ++i) {
-			if ((candidate === listener) ||
-					(candidate.__eeOnceListener__ === listener)) {
-				if (listeners.length === 2) data[type] = listeners[i ? 0 : 1];
-				else listeners.splice(i, 1);
-			}
-		}
-	} else {
-		if ((listeners === listener) ||
-				(listeners.__eeOnceListener__ === listener)) {
-			delete data[type];
-		}
-	}
+        return {};
+    }
 
-	return this;
+    options = options || {};
+    options.delimiter = typeof options.delimiter === 'string' || Utils.isRegExp(options.delimiter) ? options.delimiter : internals.delimiter;
+    options.depth = typeof options.depth === 'number' ? options.depth : internals.depth;
+    options.arrayLimit = typeof options.arrayLimit === 'number' ? options.arrayLimit : internals.arrayLimit;
+    options.parameterLimit = typeof options.parameterLimit === 'number' ? options.parameterLimit : internals.parameterLimit;
+
+    var tempObj = typeof str === 'string' ? internals.parseValues(str, options) : str;
+    var obj = {};
+
+    // Iterate over the keys and setup the new object
+
+    var keys = Object.keys(tempObj);
+    for (var i = 0, il = keys.length; i < il; ++i) {
+        var key = keys[i];
+        var newObj = internals.parseKeys(key, tempObj[key], options);
+        obj = Utils.merge(obj, newObj);
+    }
+
+    return Utils.compact(obj);
 };
 
-emit = function (type) {
-	var i, l, listener, listeners, args;
+},{"./utils":38}],37:[function(_dereq_,module,exports){
+// Load modules
 
-	if (!hasOwnProperty.call(this, '__ee__')) return;
-	listeners = this.__ee__[type];
-	if (!listeners) return;
+var Utils = _dereq_('./utils');
 
-	if (typeof listeners === 'object') {
-		l = arguments.length;
-		args = new Array(l - 1);
-		for (i = 1; i < l; ++i) args[i - 1] = arguments[i];
 
-		listeners = listeners.slice();
-		for (i = 0; (listener = listeners[i]); ++i) {
-			apply.call(listener, this, args);
-		}
-	} else {
-		switch (arguments.length) {
-		case 1:
-			call.call(listeners, this);
-			break;
-		case 2:
-			call.call(listeners, this, arguments[1]);
-			break;
-		case 3:
-			call.call(listeners, this, arguments[1], arguments[2]);
-			break;
-		default:
-			l = arguments.length;
-			args = new Array(l - 1);
-			for (i = 1; i < l; ++i) {
-				args[i - 1] = arguments[i];
-			}
-			apply.call(listeners, this, args);
-		}
-	}
+// Declare internals
+
+var internals = {
+    delimiter: '&'
 };
 
-methods = {
-	on: on,
-	once: once,
-	off: off,
-	emit: emit
+
+internals.stringify = function (obj, prefix) {
+
+    if (Utils.isBuffer(obj)) {
+        obj = obj.toString();
+    }
+    else if (obj instanceof Date) {
+        obj = obj.toISOString();
+    }
+    else if (obj === null) {
+        obj = '';
+    }
+
+    if (typeof obj === 'string' ||
+        typeof obj === 'number' ||
+        typeof obj === 'boolean') {
+
+        return [encodeURIComponent(prefix) + '=' + encodeURIComponent(obj)];
+    }
+
+    var values = [];
+
+    for (var key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            values = values.concat(internals.stringify(obj[key], prefix + '[' + key + ']'));
+        }
+    }
+
+    return values;
 };
 
-descriptors = {
-	on: d(on),
-	once: d(once),
-	off: d(off),
-	emit: d(emit)
+
+module.exports = function (obj, options) {
+
+    options = options || {};
+    var delimiter = typeof options.delimiter === 'undefined' ? internals.delimiter : options.delimiter;
+
+    var keys = [];
+
+    for (var key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            keys = keys.concat(internals.stringify(obj[key], key));
+        }
+    }
+
+    return keys.join(delimiter);
 };
 
-base = defineProperties({}, descriptors);
+},{"./utils":38}],38:[function(_dereq_,module,exports){
+// Load modules
 
-module.exports = exports = function (o) {
-	return (o == null) ? create(base) : defineProperties(Object(o), descriptors);
-};
-exports.methods = methods;
 
-},{"d":43,"es5-ext/object/valid-callable":52}],43:[function(_dereq_,module,exports){
-'use strict';
+// Declare internals
 
-var assign        = _dereq_('es5-ext/object/assign')
-  , normalizeOpts = _dereq_('es5-ext/object/normalize-options')
-  , isCallable    = _dereq_('es5-ext/object/is-callable')
-  , contains      = _dereq_('es5-ext/string/#/contains')
+var internals = {};
 
-  , d;
 
-d = module.exports = function (dscr, value/*, options*/) {
-	var c, e, w, options, desc;
-	if ((arguments.length < 2) || (typeof dscr !== 'string')) {
-		options = value;
-		value = dscr;
-		dscr = null;
-	} else {
-		options = arguments[2];
-	}
-	if (dscr == null) {
-		c = w = true;
-		e = false;
-	} else {
-		c = contains.call(dscr, 'c');
-		e = contains.call(dscr, 'e');
-		w = contains.call(dscr, 'w');
-	}
+exports.arrayToObject = function (source) {
 
-	desc = { value: value, configurable: c, enumerable: e, writable: w };
-	return !options ? desc : assign(normalizeOpts(options), desc);
+    var obj = {};
+    for (var i = 0, il = source.length; i < il; ++i) {
+        if (typeof source[i] !== 'undefined') {
+
+            obj[i] = source[i];
+        }
+    }
+
+    return obj;
 };
 
-d.gs = function (dscr, get, set/*, options*/) {
-	var c, e, options, desc;
-	if (typeof dscr !== 'string') {
-		options = set;
-		set = get;
-		get = dscr;
-		dscr = null;
-	} else {
-		options = arguments[3];
-	}
-	if (get == null) {
-		get = undefined;
-	} else if (!isCallable(get)) {
-		options = get;
-		get = set = undefined;
-	} else if (set == null) {
-		set = undefined;
-	} else if (!isCallable(set)) {
-		options = set;
-		set = undefined;
-	}
-	if (dscr == null) {
-		c = true;
-		e = false;
-	} else {
-		c = contains.call(dscr, 'c');
-		e = contains.call(dscr, 'e');
-	}
 
-	desc = { get: get, set: set, configurable: c, enumerable: e };
-	return !options ? desc : assign(normalizeOpts(options), desc);
+exports.merge = function (target, source) {
+
+    if (!source) {
+        return target;
+    }
+
+    if (Array.isArray(source)) {
+        for (var i = 0, il = source.length; i < il; ++i) {
+            if (typeof source[i] !== 'undefined') {
+                if (typeof target[i] === 'object') {
+                    target[i] = exports.merge(target[i], source[i]);
+                }
+                else {
+                    target[i] = source[i];
+                }
+            }
+        }
+
+        return target;
+    }
+
+    if (Array.isArray(target)) {
+        if (typeof source !== 'object') {
+            target.push(source);
+            return target;
+        }
+        else {
+            target = exports.arrayToObject(target);
+        }
+    }
+
+    var keys = Object.keys(source);
+    for (var k = 0, kl = keys.length; k < kl; ++k) {
+        var key = keys[k];
+        var value = source[key];
+
+        if (value &&
+            typeof value === 'object') {
+
+            if (!target[key]) {
+                target[key] = value;
+            }
+            else {
+                target[key] = exports.merge(target[key], value);
+            }
+        }
+        else {
+            target[key] = value;
+        }
+    }
+
+    return target;
 };
 
-},{"es5-ext/object/assign":44,"es5-ext/object/is-callable":47,"es5-ext/object/normalize-options":51,"es5-ext/string/#/contains":54}],44:[function(_dereq_,module,exports){
-'use strict';
 
-module.exports = _dereq_('./is-implemented')()
-	? Object.assign
-	: _dereq_('./shim');
+exports.decode = function (str) {
 
-},{"./is-implemented":45,"./shim":46}],45:[function(_dereq_,module,exports){
-'use strict';
-
-module.exports = function () {
-	var assign = Object.assign, obj;
-	if (typeof assign !== 'function') return false;
-	obj = { foo: 'raz' };
-	assign(obj, { bar: 'dwa' }, { trzy: 'trzy' });
-	return (obj.foo + obj.bar + obj.trzy) === 'razdwatrzy';
+    try {
+        return decodeURIComponent(str.replace(/\+/g, ' '));
+    } catch (e) {
+        return str;
+    }
 };
 
-},{}],46:[function(_dereq_,module,exports){
-'use strict';
 
-var keys  = _dereq_('../keys')
-  , value = _dereq_('../valid-value')
+exports.compact = function (obj, refs) {
 
-  , max = Math.max;
+    if (typeof obj !== 'object' ||
+        obj === null) {
 
-module.exports = function (dest, src/*, …srcn*/) {
-	var error, i, l = max(arguments.length, 2), assign;
-	dest = Object(value(dest));
-	assign = function (key) {
-		try { dest[key] = src[key]; } catch (e) {
-			if (!error) error = e;
-		}
-	};
-	for (i = 1; i < l; ++i) {
-		src = arguments[i];
-		keys(src).forEach(assign);
-	}
-	if (error !== undefined) throw error;
-	return dest;
+        return obj;
+    }
+
+    refs = refs || [];
+    var lookup = refs.indexOf(obj);
+    if (lookup !== -1) {
+        return refs[lookup];
+    }
+
+    refs.push(obj);
+
+    if (Array.isArray(obj)) {
+        var compacted = [];
+
+        for (var i = 0, l = obj.length; i < l; ++i) {
+            if (typeof obj[i] !== 'undefined') {
+                compacted.push(obj[i]);
+            }
+        }
+
+        return compacted;
+    }
+
+    var keys = Object.keys(obj);
+    for (var i = 0, il = keys.length; i < il; ++i) {
+        var key = keys[i];
+        obj[key] = exports.compact(obj[key], refs);
+    }
+
+    return obj;
 };
 
-},{"../keys":48,"../valid-value":53}],47:[function(_dereq_,module,exports){
-// Deprecated
 
-'use strict';
-
-module.exports = function (obj) { return typeof obj === 'function'; };
-
-},{}],48:[function(_dereq_,module,exports){
-'use strict';
-
-module.exports = _dereq_('./is-implemented')()
-	? Object.keys
-	: _dereq_('./shim');
-
-},{"./is-implemented":49,"./shim":50}],49:[function(_dereq_,module,exports){
-'use strict';
-
-module.exports = function () {
-	try {
-		Object.keys('primitive');
-		return true;
-	} catch (e) { return false; }
+exports.isRegExp = function (obj) {
+    return Object.prototype.toString.call(obj) === '[object RegExp]';
 };
 
-},{}],50:[function(_dereq_,module,exports){
-'use strict';
 
-var keys = Object.keys;
+exports.isBuffer = function (obj) {
 
-module.exports = function (object) {
-	return keys(object == null ? object : Object(object));
+    if (typeof Buffer !== 'undefined') {
+        return Buffer.isBuffer(obj);
+    }
+    else {
+        return false;
+    }
 };
 
-},{}],51:[function(_dereq_,module,exports){
-'use strict';
-
-var assign = _dereq_('./assign')
-
-  , forEach = Array.prototype.forEach
-  , create = Object.create, getPrototypeOf = Object.getPrototypeOf
-
-  , process;
-
-process = function (src, obj) {
-	var proto = getPrototypeOf(src);
-	return assign(proto ? process(proto, obj) : obj, src);
-};
-
-module.exports = function (options/*, …options*/) {
-	var result = create(null);
-	forEach.call(arguments, function (options) {
-		if (options == null) return;
-		process(Object(options), result);
-	});
-	return result;
-};
-
-},{"./assign":44}],52:[function(_dereq_,module,exports){
-'use strict';
-
-module.exports = function (fn) {
-	if (typeof fn !== 'function') throw new TypeError(fn + " is not a function");
-	return fn;
-};
-
-},{}],53:[function(_dereq_,module,exports){
-'use strict';
-
-module.exports = function (value) {
-	if (value == null) throw new TypeError("Cannot use null or undefined");
-	return value;
-};
-
-},{}],54:[function(_dereq_,module,exports){
-'use strict';
-
-module.exports = _dereq_('./is-implemented')()
-	? String.prototype.contains
-	: _dereq_('./shim');
-
-},{"./is-implemented":55,"./shim":56}],55:[function(_dereq_,module,exports){
-'use strict';
-
-var str = 'razdwatrzy';
-
-module.exports = function () {
-	if (typeof str.contains !== 'function') return false;
-	return ((str.contains('dwa') === true) && (str.contains('foo') === false));
-};
-
-},{}],56:[function(_dereq_,module,exports){
-'use strict';
-
-var indexOf = String.prototype.indexOf;
-
-module.exports = function (searchString/*, position*/) {
-	return indexOf.call(this, searchString, arguments[1]) > -1;
-};
-
-},{}],57:[function(_dereq_,module,exports){
+},{}],39:[function(_dereq_,module,exports){
 /**
  * Copyright 2013-2014 Facebook, Inc.
  *
@@ -2852,7 +3080,7 @@ var ExecutionEnvironment = {
 
 module.exports = ExecutionEnvironment;
 
-},{}],58:[function(_dereq_,module,exports){
+},{}],40:[function(_dereq_,module,exports){
 /**
  * Copyright 2013-2014 Facebook, Inc.
  *
@@ -2908,7 +3136,7 @@ function copyProperties(obj, a, b, c, d, e, f) {
 
 module.exports = copyProperties;
 
-},{}],59:[function(_dereq_,module,exports){
+},{}],41:[function(_dereq_,module,exports){
 /**
  * Copyright 2013-2014 Facebook, Inc.
  *
@@ -2953,7 +3181,7 @@ copyProperties(emptyFunction, {
 
 module.exports = emptyFunction;
 
-},{"./copyProperties":58}],60:[function(_dereq_,module,exports){
+},{"./copyProperties":40}],42:[function(_dereq_,module,exports){
 /**
  * Copyright 2013-2014 Facebook, Inc.
  *
@@ -3015,7 +3243,339 @@ var invariant = function(condition, format, a, b, c, d, e, f) {
 
 module.exports = invariant;
 
-},{}],61:[function(_dereq_,module,exports){
+},{}],43:[function(_dereq_,module,exports){
+/**
+ * Copyright 2013-2014 Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @providesModule keyMirror
+ * @typechecks static-only
+ */
+
+"use strict";
+
+var invariant = _dereq_("./invariant");
+
+/**
+ * Constructs an enumeration with keys equal to their value.
+ *
+ * For example:
+ *
+ *   var COLORS = keyMirror({blue: null, red: null});
+ *   var myColor = COLORS.blue;
+ *   var isColorValid = !!COLORS[myColor];
+ *
+ * The last line could not be performed if the values of the generated enum were
+ * not equal to their keys.
+ *
+ *   Input:  {key1: val1, key2: val2}
+ *   Output: {key1: key1, key2: key2}
+ *
+ * @param {object} obj
+ * @return {object}
+ */
+var keyMirror = function(obj) {
+  var ret = {};
+  var key;
+  ("production" !== "production" ? invariant(
+    obj instanceof Object && !Array.isArray(obj),
+    'keyMirror(...): Argument must be an object.'
+  ) : invariant(obj instanceof Object && !Array.isArray(obj)));
+  for (key in obj) {
+    if (!obj.hasOwnProperty(key)) {
+      continue;
+    }
+    ret[key] = key;
+  }
+  return ret;
+};
+
+module.exports = keyMirror;
+
+},{"./invariant":42}],44:[function(_dereq_,module,exports){
+/**
+ * Copyright 2013-2014 Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @providesModule merge
+ */
+
+"use strict";
+
+var mergeInto = _dereq_("./mergeInto");
+
+/**
+ * Shallow merges two structures into a return value, without mutating either.
+ *
+ * @param {?object} one Optional object with properties to merge from.
+ * @param {?object} two Optional object with properties to merge from.
+ * @return {object} The shallow extension of one by two.
+ */
+var merge = function(one, two) {
+  var result = {};
+  mergeInto(result, one);
+  mergeInto(result, two);
+  return result;
+};
+
+module.exports = merge;
+
+},{"./mergeInto":46}],45:[function(_dereq_,module,exports){
+/**
+ * Copyright 2013-2014 Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @providesModule mergeHelpers
+ *
+ * requiresPolyfills: Array.isArray
+ */
+
+"use strict";
+
+var invariant = _dereq_("./invariant");
+var keyMirror = _dereq_("./keyMirror");
+
+/**
+ * Maximum number of levels to traverse. Will catch circular structures.
+ * @const
+ */
+var MAX_MERGE_DEPTH = 36;
+
+/**
+ * We won't worry about edge cases like new String('x') or new Boolean(true).
+ * Functions are considered terminals, and arrays are not.
+ * @param {*} o The item/object/value to test.
+ * @return {boolean} true iff the argument is a terminal.
+ */
+var isTerminal = function(o) {
+  return typeof o !== 'object' || o === null;
+};
+
+var mergeHelpers = {
+
+  MAX_MERGE_DEPTH: MAX_MERGE_DEPTH,
+
+  isTerminal: isTerminal,
+
+  /**
+   * Converts null/undefined values into empty object.
+   *
+   * @param {?Object=} arg Argument to be normalized (nullable optional)
+   * @return {!Object}
+   */
+  normalizeMergeArg: function(arg) {
+    return arg === undefined || arg === null ? {} : arg;
+  },
+
+  /**
+   * If merging Arrays, a merge strategy *must* be supplied. If not, it is
+   * likely the caller's fault. If this function is ever called with anything
+   * but `one` and `two` being `Array`s, it is the fault of the merge utilities.
+   *
+   * @param {*} one Array to merge into.
+   * @param {*} two Array to merge from.
+   */
+  checkMergeArrayArgs: function(one, two) {
+    ("production" !== "production" ? invariant(
+      Array.isArray(one) && Array.isArray(two),
+      'Tried to merge arrays, instead got %s and %s.',
+      one,
+      two
+    ) : invariant(Array.isArray(one) && Array.isArray(two)));
+  },
+
+  /**
+   * @param {*} one Object to merge into.
+   * @param {*} two Object to merge from.
+   */
+  checkMergeObjectArgs: function(one, two) {
+    mergeHelpers.checkMergeObjectArg(one);
+    mergeHelpers.checkMergeObjectArg(two);
+  },
+
+  /**
+   * @param {*} arg
+   */
+  checkMergeObjectArg: function(arg) {
+    ("production" !== "production" ? invariant(
+      !isTerminal(arg) && !Array.isArray(arg),
+      'Tried to merge an object, instead got %s.',
+      arg
+    ) : invariant(!isTerminal(arg) && !Array.isArray(arg)));
+  },
+
+  /**
+   * @param {*} arg
+   */
+  checkMergeIntoObjectArg: function(arg) {
+    ("production" !== "production" ? invariant(
+      (!isTerminal(arg) || typeof arg === 'function') && !Array.isArray(arg),
+      'Tried to merge into an object, instead got %s.',
+      arg
+    ) : invariant((!isTerminal(arg) || typeof arg === 'function') && !Array.isArray(arg)));
+  },
+
+  /**
+   * Checks that a merge was not given a circular object or an object that had
+   * too great of depth.
+   *
+   * @param {number} Level of recursion to validate against maximum.
+   */
+  checkMergeLevel: function(level) {
+    ("production" !== "production" ? invariant(
+      level < MAX_MERGE_DEPTH,
+      'Maximum deep merge depth exceeded. You may be attempting to merge ' +
+      'circular structures in an unsupported way.'
+    ) : invariant(level < MAX_MERGE_DEPTH));
+  },
+
+  /**
+   * Checks that the supplied merge strategy is valid.
+   *
+   * @param {string} Array merge strategy.
+   */
+  checkArrayStrategy: function(strategy) {
+    ("production" !== "production" ? invariant(
+      strategy === undefined || strategy in mergeHelpers.ArrayStrategies,
+      'You must provide an array strategy to deep merge functions to ' +
+      'instruct the deep merge how to resolve merging two arrays.'
+    ) : invariant(strategy === undefined || strategy in mergeHelpers.ArrayStrategies));
+  },
+
+  /**
+   * Set of possible behaviors of merge algorithms when encountering two Arrays
+   * that must be merged together.
+   * - `clobber`: The left `Array` is ignored.
+   * - `indexByIndex`: The result is achieved by recursively deep merging at
+   *   each index. (not yet supported.)
+   */
+  ArrayStrategies: keyMirror({
+    Clobber: true,
+    IndexByIndex: true
+  })
+
+};
+
+module.exports = mergeHelpers;
+
+},{"./invariant":42,"./keyMirror":43}],46:[function(_dereq_,module,exports){
+/**
+ * Copyright 2013-2014 Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @providesModule mergeInto
+ * @typechecks static-only
+ */
+
+"use strict";
+
+var mergeHelpers = _dereq_("./mergeHelpers");
+
+var checkMergeObjectArg = mergeHelpers.checkMergeObjectArg;
+var checkMergeIntoObjectArg = mergeHelpers.checkMergeIntoObjectArg;
+
+/**
+ * Shallow merges two structures by mutating the first parameter.
+ *
+ * @param {object|function} one Object to be merged into.
+ * @param {?object} two Optional object with properties to merge from.
+ */
+function mergeInto(one, two) {
+  checkMergeIntoObjectArg(one);
+  if (two != null) {
+    checkMergeObjectArg(two);
+    for (var key in two) {
+      if (!two.hasOwnProperty(key)) {
+        continue;
+      }
+      one[key] = two[key];
+    }
+  }
+}
+
+module.exports = mergeInto;
+
+},{"./mergeHelpers":45}],47:[function(_dereq_,module,exports){
+/**
+ * Copyright 2013-2014 Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @providesModule mixInto
+ */
+
+"use strict";
+
+/**
+ * Simply copies properties to the prototype.
+ */
+var mixInto = function(constructor, methodBag) {
+  var methodName;
+  for (methodName in methodBag) {
+    if (!methodBag.hasOwnProperty(methodName)) {
+      continue;
+    }
+    constructor.prototype[methodName] = methodBag[methodName];
+  }
+};
+
+module.exports = mixInto;
+
+},{}],48:[function(_dereq_,module,exports){
 /**
  * Copyright 2014 Facebook, Inc.
  *
@@ -3065,12 +3625,1017 @@ if ("production" !== "production") {
 
 module.exports = warning;
 
-},{"./emptyFunction":59}],62:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/helpers/replaceWith');
+},{"./emptyFunction":41}],49:[function(_dereq_,module,exports){
+/** @license MIT License (c) copyright 2010-2014 original author or authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
 
-},{"./modules/helpers/replaceWith":20}],63:[function(_dereq_,module,exports){
-module.exports = _dereq_('./modules/helpers/transitionTo');
+(function(define) { 'use strict';
+define(function (_dereq_) {
 
-},{"./modules/helpers/transitionTo":22}]},{},[8])
-(8)
+	var makePromise = _dereq_('./makePromise');
+	var Scheduler = _dereq_('./Scheduler');
+	var async = _dereq_('./async');
+
+	return makePromise({
+		scheduler: new Scheduler(async)
+	});
+
+});
+})(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(_dereq_); });
+
+},{"./Scheduler":51,"./async":52,"./makePromise":53}],50:[function(_dereq_,module,exports){
+/** @license MIT License (c) copyright 2010-2014 original author or authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+
+(function(define) { 'use strict';
+define(function() {
+	/**
+	 * Circular queue
+	 * @param {number} capacityPow2 power of 2 to which this queue's capacity
+	 *  will be set initially. eg when capacityPow2 == 3, queue capacity
+	 *  will be 8.
+	 * @constructor
+	 */
+	function Queue(capacityPow2) {
+		this.head = this.tail = this.length = 0;
+		this.buffer = new Array(1 << capacityPow2);
+	}
+
+	Queue.prototype.push = function(x) {
+		if(this.length === this.buffer.length) {
+			this._ensureCapacity(this.length * 2);
+		}
+
+		this.buffer[this.tail] = x;
+		this.tail = (this.tail + 1) & (this.buffer.length - 1);
+		++this.length;
+		return this.length;
+	};
+
+	Queue.prototype.shift = function() {
+		var x = this.buffer[this.head];
+		this.buffer[this.head] = void 0;
+		this.head = (this.head + 1) & (this.buffer.length - 1);
+		--this.length;
+		return x;
+	};
+
+	Queue.prototype._ensureCapacity = function(capacity) {
+		var head = this.head;
+		var buffer = this.buffer;
+		var newBuffer = new Array(capacity);
+		var i = 0;
+		var len;
+
+		if(head === 0) {
+			len = this.length;
+			for(; i<len; ++i) {
+				newBuffer[i] = buffer[i];
+			}
+		} else {
+			capacity = buffer.length;
+			len = this.tail;
+			for(; head<capacity; ++i, ++head) {
+				newBuffer[i] = buffer[head];
+			}
+
+			for(head=0; head<len; ++i, ++head) {
+				newBuffer[i] = buffer[head];
+			}
+		}
+
+		this.buffer = newBuffer;
+		this.head = 0;
+		this.tail = this.length;
+	};
+
+	return Queue;
+
+});
+}(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
+
+},{}],51:[function(_dereq_,module,exports){
+/** @license MIT License (c) copyright 2010-2014 original author or authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+
+(function(define) { 'use strict';
+define(function(_dereq_) {
+
+	var Queue = _dereq_('./Queue');
+
+	// Credit to Twisol (https://github.com/Twisol) for suggesting
+	// this type of extensible queue + trampoline approach for next-tick conflation.
+
+	/**
+	 * Async task scheduler
+	 * @param {function} async function to schedule a single async function
+	 * @constructor
+	 */
+	function Scheduler(async) {
+		this._async = async;
+		this._queue = new Queue(15);
+		this._afterQueue = new Queue(5);
+		this._running = false;
+
+		var self = this;
+		this.drain = function() {
+			self._drain();
+		};
+	}
+
+	/**
+	 * Enqueue a task
+	 * @param {{ run:function }} task
+	 */
+	Scheduler.prototype.enqueue = function(task) {
+		this._add(this._queue, task);
+	};
+
+	/**
+	 * Enqueue a task to run after the main task queue
+	 * @param {{ run:function }} task
+	 */
+	Scheduler.prototype.afterQueue = function(task) {
+		this._add(this._afterQueue, task);
+	};
+
+	/**
+	 * Drain the handler queue entirely, and then the after queue
+	 */
+	Scheduler.prototype._drain = function() {
+		runQueue(this._queue);
+		this._running = false;
+		runQueue(this._afterQueue);
+	};
+
+	/**
+	 * Add a task to the q, and schedule drain if not already scheduled
+	 * @param {Queue} queue
+	 * @param {{run:function}} task
+	 * @private
+	 */
+	Scheduler.prototype._add = function(queue, task) {
+		queue.push(task);
+		if(!this._running) {
+			this._running = true;
+			this._async(this.drain);
+		}
+	};
+
+	/**
+	 * Run all the tasks in the q
+	 * @param queue
+	 */
+	function runQueue(queue) {
+		while(queue.length > 0) {
+			queue.shift().run();
+		}
+	}
+
+	return Scheduler;
+
+});
+}(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(_dereq_); }));
+
+},{"./Queue":50}],52:[function(_dereq_,module,exports){
+/** @license MIT License (c) copyright 2010-2014 original author or authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+
+(function(define) { 'use strict';
+define(function(_dereq_) {
+
+	// Sniff "best" async scheduling option
+	// Prefer process.nextTick or MutationObserver, then check for
+	// vertx and finally fall back to setTimeout
+
+	/*jshint maxcomplexity:6*/
+	/*global process,document,setTimeout,MutationObserver,WebKitMutationObserver*/
+	var nextTick, MutationObs;
+
+	if (typeof process !== 'undefined' && process !== null &&
+		typeof process.nextTick === 'function') {
+		nextTick = function(f) {
+			process.nextTick(f);
+		};
+
+	} else if (MutationObs =
+		(typeof MutationObserver === 'function' && MutationObserver) ||
+		(typeof WebKitMutationObserver === 'function' && WebKitMutationObserver)) {
+		nextTick = (function (document, MutationObserver) {
+			var scheduled;
+			var el = document.createElement('div');
+			var o = new MutationObserver(run);
+			o.observe(el, { attributes: true });
+
+			function run() {
+				var f = scheduled;
+				scheduled = void 0;
+				f();
+			}
+
+			return function (f) {
+				scheduled = f;
+				el.setAttribute('class', 'x');
+			};
+		}(document, MutationObs));
+
+	} else {
+		nextTick = (function(cjsRequire) {
+			try {
+				// vert.x 1.x || 2.x
+				return cjsRequire('vertx').runOnLoop || cjsRequire('vertx').runOnContext;
+			} catch (ignore) {}
+
+			// capture setTimeout to avoid being caught by fake timers
+			// used in time based tests
+			var capturedSetTimeout = setTimeout;
+			return function (t) {
+				capturedSetTimeout(t, 0);
+			};
+		}(_dereq_));
+	}
+
+	return nextTick;
+});
+}(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(_dereq_); }));
+
+},{}],53:[function(_dereq_,module,exports){
+/** @license MIT License (c) copyright 2010-2014 original author or authors */
+/** @author Brian Cavalier */
+/** @author John Hann */
+
+(function(define) { 'use strict';
+define(function() {
+
+	return function makePromise(environment) {
+
+		var tasks = environment.scheduler;
+
+		var objectCreate = Object.create ||
+			function(proto) {
+				function Child() {}
+				Child.prototype = proto;
+				return new Child();
+			};
+
+		/**
+		 * Create a promise whose fate is determined by resolver
+		 * @constructor
+		 * @returns {Promise} promise
+		 * @name Promise
+		 */
+		function Promise(resolver, handler) {
+			this._handler = resolver === Handler ? handler : init(resolver);
+		}
+
+		/**
+		 * Run the supplied resolver
+		 * @param resolver
+		 * @returns {Pending}
+		 */
+		function init(resolver) {
+			var handler = new Pending();
+
+			try {
+				resolver(promiseResolve, promiseReject, promiseNotify);
+			} catch (e) {
+				promiseReject(e);
+			}
+
+			return handler;
+
+			/**
+			 * Transition from pre-resolution state to post-resolution state, notifying
+			 * all listeners of the ultimate fulfillment or rejection
+			 * @param {*} x resolution value
+			 */
+			function promiseResolve (x) {
+				handler.resolve(x);
+			}
+			/**
+			 * Reject this promise with reason, which will be used verbatim
+			 * @param {Error|*} reason rejection reason, strongly suggested
+			 *   to be an Error type
+			 */
+			function promiseReject (reason) {
+				handler.reject(reason);
+			}
+
+			/**
+			 * Issue a progress event, notifying all progress listeners
+			 * @param {*} x progress event payload to pass to all listeners
+			 */
+			function promiseNotify (x) {
+				handler.notify(x);
+			}
+		}
+
+		// Creation
+
+		Promise.resolve = resolve;
+		Promise.reject = reject;
+		Promise.never = never;
+
+		Promise._defer = defer;
+		Promise._handler = getHandler;
+
+		/**
+		 * Returns a trusted promise. If x is already a trusted promise, it is
+		 * returned, otherwise returns a new trusted Promise which follows x.
+		 * @param  {*} x
+		 * @return {Promise} promise
+		 */
+		function resolve(x) {
+			return isPromise(x) ? x
+				: new Promise(Handler, new Async(getHandler(x)));
+		}
+
+		/**
+		 * Return a reject promise with x as its reason (x is used verbatim)
+		 * @param {*} x
+		 * @returns {Promise} rejected promise
+		 */
+		function reject(x) {
+			return new Promise(Handler, new Async(new Rejected(x)));
+		}
+
+		/**
+		 * Return a promise that remains pending forever
+		 * @returns {Promise} forever-pending promise.
+		 */
+		function never() {
+			return foreverPendingPromise; // Should be frozen
+		}
+
+		/**
+		 * Creates an internal {promise, resolver} pair
+		 * @private
+		 * @returns {Promise}
+		 */
+		function defer() {
+			return new Promise(Handler, new Pending());
+		}
+
+		// Transformation and flow control
+
+		/**
+		 * Transform this promise's fulfillment value, returning a new Promise
+		 * for the transformed result.  If the promise cannot be fulfilled, onRejected
+		 * is called with the reason.  onProgress *may* be called with updates toward
+		 * this promise's fulfillment.
+		 * @param {function=} onFulfilled fulfillment handler
+		 * @param {function=} onRejected rejection handler
+		 * @deprecated @param {function=} onProgress progress handler
+		 * @return {Promise} new promise
+		 */
+		Promise.prototype.then = function(onFulfilled, onRejected) {
+			var parent = this._handler;
+
+			if (typeof onFulfilled !== 'function' && parent.join().state() > 0) {
+				// Short circuit: value will not change, simply share handler
+				return new Promise(Handler, parent);
+			}
+
+			var p = this._beget();
+			var child = p._handler;
+
+			parent.chain(child, parent.receiver, onFulfilled, onRejected,
+					arguments.length > 2 ? arguments[2] : void 0);
+
+			return p;
+		};
+
+		/**
+		 * If this promise cannot be fulfilled due to an error, call onRejected to
+		 * handle the error. Shortcut for .then(undefined, onRejected)
+		 * @param {function?} onRejected
+		 * @return {Promise}
+		 */
+		Promise.prototype['catch'] = function(onRejected) {
+			return this.then(void 0, onRejected);
+		};
+
+		/**
+		 * Creates a new, pending promise of the same type as this promise
+		 * @private
+		 * @returns {Promise}
+		 */
+		Promise.prototype._beget = function() {
+			var parent = this._handler;
+			var child = new Pending(parent.receiver, parent.join().context);
+			return new this.constructor(Handler, child);
+		};
+
+		// Array combinators
+
+		Promise.all = all;
+		Promise.race = race;
+
+		/**
+		 * Return a promise that will fulfill when all promises in the
+		 * input array have fulfilled, or will reject when one of the
+		 * promises rejects.
+		 * @param {array} promises array of promises
+		 * @returns {Promise} promise for array of fulfillment values
+		 */
+		function all(promises) {
+			/*jshint maxcomplexity:8*/
+			var resolver = new Pending();
+			var pending = promises.length >>> 0;
+			var results = new Array(pending);
+
+			var i, h, x, s;
+			for (i = 0; i < promises.length; ++i) {
+				x = promises[i];
+
+				if (x === void 0 && !(i in promises)) {
+					--pending;
+					continue;
+				}
+
+				if (maybeThenable(x)) {
+					h = isPromise(x)
+						? x._handler.join()
+						: getHandlerUntrusted(x);
+
+					s = h.state();
+					if (s === 0) {
+						h.fold(settleAt, i, results, resolver);
+					} else if (s > 0) {
+						results[i] = h.value;
+						--pending;
+					} else {
+						resolver.become(h);
+						break;
+					}
+
+				} else {
+					results[i] = x;
+					--pending;
+				}
+			}
+
+			if(pending === 0) {
+				resolver.become(new Fulfilled(results));
+			}
+
+			return new Promise(Handler, resolver);
+
+			function settleAt(i, x, resolver) {
+				/*jshint validthis:true*/
+				this[i] = x;
+				if(--pending === 0) {
+					resolver.become(new Fulfilled(this));
+				}
+			}
+		}
+
+		/**
+		 * Fulfill-reject competitive race. Return a promise that will settle
+		 * to the same state as the earliest input promise to settle.
+		 *
+		 * WARNING: The ES6 Promise spec requires that race()ing an empty array
+		 * must return a promise that is pending forever.  This implementation
+		 * returns a singleton forever-pending promise, the same singleton that is
+		 * returned by Promise.never(), thus can be checked with ===
+		 *
+		 * @param {array} promises array of promises to race
+		 * @returns {Promise} if input is non-empty, a promise that will settle
+		 * to the same outcome as the earliest input promise to settle. if empty
+		 * is empty, returns a promise that will never settle.
+		 */
+		function race(promises) {
+			// Sigh, race([]) is untestable unless we return *something*
+			// that is recognizable without calling .then() on it.
+			if(Object(promises) === promises && promises.length === 0) {
+				return never();
+			}
+
+			var h = new Pending();
+			var i, x;
+			for(i=0; i<promises.length; ++i) {
+				x = promises[i];
+				if (x !== void 0 && i in promises) {
+					getHandler(x).visit(h, h.resolve, h.reject);
+				}
+			}
+			return new Promise(Handler, h);
+		}
+
+		// Promise internals
+		// Below this, everything is @private
+
+		/**
+		 * Get an appropriate handler for x, without checking for cycles
+		 * @param {*} x
+		 * @returns {object} handler
+		 */
+		function getHandler(x) {
+			if(isPromise(x)) {
+				return x._handler.join();
+			}
+			return maybeThenable(x) ? getHandlerUntrusted(x) : new Fulfilled(x);
+		}
+
+		/**
+		 * Get a handler for potentially untrusted thenable x
+		 * @param {*} x
+		 * @returns {object} handler
+		 */
+		function getHandlerUntrusted(x) {
+			try {
+				var untrustedThen = x.then;
+				return typeof untrustedThen === 'function'
+					? new Thenable(untrustedThen, x)
+					: new Fulfilled(x);
+			} catch(e) {
+				return new Rejected(e);
+			}
+		}
+
+		/**
+		 * Handler for a promise that is pending forever
+		 * @constructor
+		 */
+		function Handler() {}
+
+		Handler.prototype.when
+			= Handler.prototype.become
+			= Handler.prototype.notify
+			= Handler.prototype.fail
+			= Handler.prototype._unreport
+			= Handler.prototype._report
+			= noop;
+
+		Handler.prototype._state = 0;
+
+		Handler.prototype.state = function() {
+			return this._state;
+		};
+
+		/**
+		 * Recursively collapse handler chain to find the handler
+		 * nearest to the fully resolved value.
+		 * @returns {object} handler nearest the fully resolved value
+		 */
+		Handler.prototype.join = function() {
+			var h = this;
+			while(h.handler !== void 0) {
+				h = h.handler;
+			}
+			return h;
+		};
+
+		Handler.prototype.chain = function(to, receiver, fulfilled, rejected, progress) {
+			this.when({
+				resolver: to,
+				receiver: receiver,
+				fulfilled: fulfilled,
+				rejected: rejected,
+				progress: progress
+			});
+		};
+
+		Handler.prototype.visit = function(receiver, fulfilled, rejected, progress) {
+			this.chain(failIfRejected, receiver, fulfilled, rejected, progress);
+		};
+
+		Handler.prototype.fold = function(f, z, c, to) {
+			this.visit(to, function(x) {
+				f.call(c, z, x, this);
+			}, to.reject, to.notify);
+		};
+
+		/**
+		 * Handler that invokes fail() on any handler it becomes
+		 * @constructor
+		 */
+		function FailIfRejected() {}
+
+		inherit(Handler, FailIfRejected);
+
+		FailIfRejected.prototype.become = function(h) {
+			h.fail();
+		};
+
+		var failIfRejected = new FailIfRejected();
+
+		/**
+		 * Handler that manages a queue of consumers waiting on a pending promise
+		 * @constructor
+		 */
+		function Pending(receiver, inheritedContext) {
+			Promise.createContext(this, inheritedContext);
+
+			this.consumers = void 0;
+			this.receiver = receiver;
+			this.handler = void 0;
+			this.resolved = false;
+		}
+
+		inherit(Handler, Pending);
+
+		Pending.prototype._state = 0;
+
+		Pending.prototype.resolve = function(x) {
+			this.become(getHandler(x));
+		};
+
+		Pending.prototype.reject = function(x) {
+			if(this.resolved) {
+				return;
+			}
+
+			this.become(new Rejected(x));
+		};
+
+		Pending.prototype.join = function() {
+			if (!this.resolved) {
+				return this;
+			}
+
+			var h = this;
+
+			while (h.handler !== void 0) {
+				h = h.handler;
+				if (h === this) {
+					return this.handler = cycle();
+				}
+			}
+
+			return h;
+		};
+
+		Pending.prototype.run = function() {
+			var q = this.consumers;
+			var handler = this.join();
+			this.consumers = void 0;
+
+			for (var i = 0; i < q.length; ++i) {
+				handler.when(q[i]);
+			}
+		};
+
+		Pending.prototype.become = function(handler) {
+			if(this.resolved) {
+				return;
+			}
+
+			this.resolved = true;
+			this.handler = handler;
+			if(this.consumers !== void 0) {
+				tasks.enqueue(this);
+			}
+
+			if(this.context !== void 0) {
+				handler._report(this.context);
+			}
+		};
+
+		Pending.prototype.when = function(continuation) {
+			if(this.resolved) {
+				tasks.enqueue(new ContinuationTask(continuation, this.handler));
+			} else {
+				if(this.consumers === void 0) {
+					this.consumers = [continuation];
+				} else {
+					this.consumers.push(continuation);
+				}
+			}
+		};
+
+		Pending.prototype.notify = function(x) {
+			if(!this.resolved) {
+				tasks.enqueue(new ProgressTask(x, this));
+			}
+		};
+
+		Pending.prototype.fail = function(context) {
+			var c = typeof context === 'undefined' ? this.context : context;
+			this.resolved && this.handler.join().fail(c);
+		};
+
+		Pending.prototype._report = function(context) {
+			this.resolved && this.handler.join()._report(context);
+		};
+
+		Pending.prototype._unreport = function() {
+			this.resolved && this.handler.join()._unreport();
+		};
+
+		/**
+		 * Wrap another handler and force it into a future stack
+		 * @param {object} handler
+		 * @constructor
+		 */
+		function Async(handler) {
+			this.handler = handler;
+		}
+
+		inherit(Handler, Async);
+
+		Async.prototype.when = function(continuation) {
+			tasks.enqueue(new ContinuationTask(continuation, this));
+		};
+
+		Async.prototype._report = function(context) {
+			this.join()._report(context);
+		};
+
+		Async.prototype._unreport = function() {
+			this.join()._unreport();
+		};
+
+		/**
+		 * Handler that wraps an untrusted thenable and assimilates it in a future stack
+		 * @param {function} then
+		 * @param {{then: function}} thenable
+		 * @constructor
+		 */
+		function Thenable(then, thenable) {
+			Pending.call(this);
+			tasks.enqueue(new AssimilateTask(then, thenable, this));
+		}
+
+		inherit(Pending, Thenable);
+
+		/**
+		 * Handler for a fulfilled promise
+		 * @param {*} x fulfillment value
+		 * @constructor
+		 */
+		function Fulfilled(x) {
+			Promise.createContext(this);
+			this.value = x;
+		}
+
+		inherit(Handler, Fulfilled);
+
+		Fulfilled.prototype._state = 1;
+
+		Fulfilled.prototype.fold = function(f, z, c, to) {
+			runContinuation3(f, z, this, c, to);
+		};
+
+		Fulfilled.prototype.when = function(cont) {
+			runContinuation1(cont.fulfilled, this, cont.receiver, cont.resolver);
+		};
+
+		var errorId = 0;
+
+		/**
+		 * Handler for a rejected promise
+		 * @param {*} x rejection reason
+		 * @constructor
+		 */
+		function Rejected(x) {
+			Promise.createContext(this);
+
+			this.id = ++errorId;
+			this.value = x;
+			this.handled = false;
+			this.reported = false;
+
+			this._report();
+		}
+
+		inherit(Handler, Rejected);
+
+		Rejected.prototype._state = -1;
+
+		Rejected.prototype.fold = function(f, z, c, to) {
+			to.become(this);
+		};
+
+		Rejected.prototype.when = function(cont) {
+			if(typeof cont.rejected === 'function') {
+				this._unreport();
+			}
+			runContinuation1(cont.rejected, this, cont.receiver, cont.resolver);
+		};
+
+		Rejected.prototype._report = function(context) {
+			tasks.afterQueue(new ReportTask(this, context));
+		};
+
+		Rejected.prototype._unreport = function() {
+			this.handled = true;
+			tasks.afterQueue(new UnreportTask(this));
+		};
+
+		Rejected.prototype.fail = function(context) {
+			Promise.onFatalRejection(this, context === void 0 ? this.context : context);
+		};
+
+		function ReportTask(rejection, context) {
+			this.rejection = rejection;
+			this.context = context;
+		}
+
+		ReportTask.prototype.run = function() {
+			if(!this.rejection.handled) {
+				this.rejection.reported = true;
+				Promise.onPotentiallyUnhandledRejection(this.rejection, this.context);
+			}
+		};
+
+		function UnreportTask(rejection) {
+			this.rejection = rejection;
+		}
+
+		UnreportTask.prototype.run = function() {
+			if(this.rejection.reported) {
+				Promise.onPotentiallyUnhandledRejectionHandled(this.rejection);
+			}
+		};
+
+		// Unhandled rejection hooks
+		// By default, everything is a noop
+
+		// TODO: Better names: "annotate"?
+		Promise.createContext
+			= Promise.enterContext
+			= Promise.exitContext
+			= Promise.onPotentiallyUnhandledRejection
+			= Promise.onPotentiallyUnhandledRejectionHandled
+			= Promise.onFatalRejection
+			= noop;
+
+		// Errors and singletons
+
+		var foreverPendingHandler = new Handler();
+		var foreverPendingPromise = new Promise(Handler, foreverPendingHandler);
+
+		function cycle() {
+			return new Rejected(new TypeError('Promise cycle'));
+		}
+
+		// Task runners
+
+		/**
+		 * Run a single consumer
+		 * @constructor
+		 */
+		function ContinuationTask(continuation, handler) {
+			this.continuation = continuation;
+			this.handler = handler;
+		}
+
+		ContinuationTask.prototype.run = function() {
+			this.handler.join().when(this.continuation);
+		};
+
+		/**
+		 * Run a queue of progress handlers
+		 * @constructor
+		 */
+		function ProgressTask(value, handler) {
+			this.handler = handler;
+			this.value = value;
+		}
+
+		ProgressTask.prototype.run = function() {
+			var q = this.handler.consumers;
+			if(q === void 0) {
+				return;
+			}
+
+			for (var c, i = 0; i < q.length; ++i) {
+				c = q[i];
+				runNotify(c.progress, this.value, this.handler, c.receiver, c.resolver);
+			}
+		};
+
+		/**
+		 * Assimilate a thenable, sending it's value to resolver
+		 * @param {function} then
+		 * @param {object|function} thenable
+		 * @param {object} resolver
+		 * @constructor
+		 */
+		function AssimilateTask(then, thenable, resolver) {
+			this._then = then;
+			this.thenable = thenable;
+			this.resolver = resolver;
+		}
+
+		AssimilateTask.prototype.run = function() {
+			var h = this.resolver;
+			tryAssimilate(this._then, this.thenable, _resolve, _reject, _notify);
+
+			function _resolve(x) { h.resolve(x); }
+			function _reject(x)  { h.reject(x); }
+			function _notify(x)  { h.notify(x); }
+		};
+
+		function tryAssimilate(then, thenable, resolve, reject, notify) {
+			try {
+				then.call(thenable, resolve, reject, notify);
+			} catch (e) {
+				reject(e);
+			}
+		}
+
+		// Other helpers
+
+		/**
+		 * @param {*} x
+		 * @returns {boolean} true iff x is a trusted Promise
+		 */
+		function isPromise(x) {
+			return x instanceof Promise;
+		}
+
+		/**
+		 * Test just enough to rule out primitives, in order to take faster
+		 * paths in some code
+		 * @param {*} x
+		 * @returns {boolean} false iff x is guaranteed *not* to be a thenable
+		 */
+		function maybeThenable(x) {
+			return (typeof x === 'object' || typeof x === 'function') && x !== null;
+		}
+
+		function runContinuation1(f, h, receiver, next) {
+			if(typeof f !== 'function') {
+				return next.become(h);
+			}
+
+			Promise.enterContext(h);
+			tryCatchReject(f, h.value, receiver, next);
+			Promise.exitContext();
+		}
+
+		function runContinuation3(f, x, h, receiver, next) {
+			if(typeof f !== 'function') {
+				return next.become(h);
+			}
+
+			Promise.enterContext(h);
+			tryCatchReject3(f, x, h.value, receiver, next);
+			Promise.exitContext();
+		}
+
+		function runNotify(f, x, h, receiver, next) {
+			if(typeof f !== 'function') {
+				return next.notify(x);
+			}
+
+			Promise.enterContext(h);
+			tryCatchReturn(f, x, receiver, next);
+			Promise.exitContext();
+		}
+
+		/**
+		 * Return f.call(thisArg, x), or if it throws return a rejected promise for
+		 * the thrown exception
+		 */
+		function tryCatchReject(f, x, thisArg, next) {
+			try {
+				next.become(getHandler(f.call(thisArg, x)));
+			} catch(e) {
+				next.become(new Rejected(e));
+			}
+		}
+
+		/**
+		 * Same as above, but includes the extra argument parameter.
+		 */
+		function tryCatchReject3(f, x, y, thisArg, next) {
+			try {
+				f.call(thisArg, x, y, next);
+			} catch(e) {
+				next.become(new Rejected(e));
+			}
+		}
+
+		/**
+		 * Return f.call(thisArg, x), or if it throws, *return* the exception
+		 */
+		function tryCatchReturn(f, x, thisArg, next) {
+			try {
+				next.notify(f.call(thisArg, x));
+			} catch(e) {
+				next.notify(e);
+			}
+		}
+
+		function inherit(Parent, Child) {
+			Child.prototype = objectCreate(Parent.prototype);
+			Child.prototype.constructor = Child;
+		}
+
+		function noop() {}
+
+		return Promise;
+	};
+});
+}(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
+
+},{}]},{},[9])
+(9)
 });

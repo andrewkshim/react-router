@@ -1,5 +1,5 @@
 var React = require('react');
-var resolveAsyncState = require('../helpers/resolveAsyncState');
+var resolveAsyncState = require('../utils/resolveAsyncState');
 
 /**
  * A mixin for route handler component classes that fetch at least
@@ -94,7 +94,7 @@ var AsyncState = {
   },
 
   componentDidMount: function () {
-    if (this.props.initialAsyncState || !this.constructor.getInitialAsyncState)
+    if (this.props.initialAsyncState || typeof this.constructor.getInitialAsyncState !== 'function')
       return;
 
     resolveAsyncState(

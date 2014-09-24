@@ -1,7 +1,7 @@
 var React = require('react');
 var invariant = require('react/lib/invariant');
 var warning = require('react/lib/warning');
-var Path = require('../helpers/Path');
+var Path = require('../utils/Path');
 
 var _namedRoutes = {};
 
@@ -26,63 +26,122 @@ var RouteStore = {
    * from the store.
    */
   unregisterRoute: function (route) {
-    if (route.props.name)
-      delete _namedRoutes[route.props.name];
+    var props = route.props;
 
-    React.Children.forEach(route.props.children, function (child) {
-      RouteStore.unregisterRoute(child);
-    });
+    if (props.name)
+      delete _namedRoutes[props.name];
+
+    React.Children.forEach(props.children, RouteStore.unregisterRoute);
   },
 
   /**
    * Registers a <Route> and all of its children with the store. Also,
    * does some normalization and validation on route props.
    */
-  registerRoute: function (route, _parentRoute) {
-    // Make sure the <Route>'s path begins with a slash. Default to its name.
-    // We can't do this in getDefaultProps because it may not be called on
-    // <Route>s that are never actually mounted.
-    if (route.props.path || route.props.name) {
-      route.props.path = Path.normalize(route.props.path || route.props.name);
-    } else {
-      route.props.path = '/';
-    }
+  registerRoute: function (route, parentRoute) {
+    // Note: parentRoute may be a <Route> _or_ a <Routes>.
+    var props = route.props;
 
-    // Make sure the <Route> has a valid React component for a handler.
     invariant(
-      React.isValidClass(route.props.handler),
-      'The handler for Route "' + (route.props.name || route.props.path) + '" ' +
-      'must be a valid React component'
+      React.isValidClass(props.handler),
+      'The handler for the "%s" route must be a valid React class',
+      props.name || props.path
     );
 
-    // Make sure the <Route> has all params that its parent needs.
-    if (_parentRoute) {
-      var paramNames = Path.extractParamNames(route.props.path);
+    var parentPath = (parentRoute && parentRoute.props.path) || '/';
 
-      Path.extractParamNames(_parentRoute.props.path).forEach(function (paramName) {
+    if ((props.path || props.name) && !props.isDefault && !props.catchAll) {
+      var path = props.path || props.name;
+
+      // Relative paths extend their parent.
+      if (!Path.isAbsolute(path))
+        path = Path.join(parentPath, path);
+
+      props.path = Path.normalize(path);
+    } else {
+      props.path = parentPath;
+
+      if (props.catchAll)
+        props.path += '*';
+    }
+
+    props.paramNames = Path.extractParamNames(props.path);
+
+    // Make sure the route's path has all params its parent needs.
+    if (parentRoute && Array.isArray(parentRoute.props.paramNames)) {
+      parentRoute.props.paramNames.forEach(function (paramName) {
         invariant(
-          paramNames.indexOf(paramName) !== -1,
-          'The nested route path "' + route.props.path + '" is missing the "' + paramName + '" ' +
-          'parameter of its parent path "' + _parentRoute.props.path + '"'
+          props.paramNames.indexOf(paramName) !== -1,
+          'The nested route path "%s" is missing the "%s" parameter of its parent path "%s"',
+          props.path, paramName, parentRoute.props.path
         );
       });
     }
 
-    // Make sure the <Route> can be looked up by <Link>s.
-    if (route.props.name) {
-      var existingRoute = _namedRoutes[route.props.name];
+    // Make sure the route can be looked up by <Link>s.
+    if (props.name) {
+      var existingRoute = _namedRoutes[props.name];
 
       invariant(
         !existingRoute || route === existingRoute,
-        'You cannot use the name "' + route.props.name + '" for more than one route'
+        'You cannot use the name "%s" for more than one route',
+        props.name
       );
 
-      _namedRoutes[route.props.name] = route;
+      _namedRoutes[props.name] = route;
     }
 
-    React.Children.forEach(route.props.children, function (child) {
-      RouteStore.registerRoute(child, route);
+    if (props.catchAll) {
+      invariant(
+        parentRoute,
+        '<NotFoundRoute> must have a parent <Route>'
+      );
+
+      invariant(
+        parentRoute.props.notFoundRoute == null,
+        'You may not have more than one <NotFoundRoute> per <Route>'
+      );
+
+      parentRoute.props.notFoundRoute = route;
+
+      return null;
+    }
+
+    if (props.isDefault) {
+      invariant(
+        parentRoute,
+        '<DefaultRoute> must have a parent <Route>'
+      );
+
+      invariant(
+        parentRoute.props.defaultRoute == null,
+        'You may not have more than one <DefaultRoute> per <Route>'
+      );
+
+      parentRoute.props.defaultRoute = route;
+
+      return null;
+    }
+
+    // Make sure children is an array.
+    props.children = RouteStore.registerChildren(props.children, route);
+
+    return route;
+  },
+
+  /**
+   * Registers many children routes at once, always returning an array.
+   */
+  registerChildren: function (children, parentRoute) {
+    var routes = [];
+
+    React.Children.forEach(children, function (child) {
+      // Exclude <DefaultRoute>s.
+      if (child = RouteStore.registerRoute(child, parentRoute))
+        routes.push(child);
     });
+
+    return routes;
   },
 
   /**

@@ -1,3 +1,50 @@
+v0.7.0 - Tue, 02 Sep 2014 16:42:28 GMT
+--------------------------------------
+
+- [3796371](../../commit/3796371) [changed] Use Browserify to run specs
+- [0e649be](../../commit/0e649be) [changed] Use Browserify to build examples
+- [bb7b666](../../commit/bb7b666) [removed] .js files from repo root
+- [96122dd](../../commit/96122dd) [fixed] undefined Buffer in query strings
+
+
+v0.6.1 - Sun, 31 Aug 2014 03:21:20 GMT
+--------------------------------------
+
+- [7536d96](../../commit/7536d96) [fixed] warning on links w/o params
+
+
+v0.6.0 - Fri, 29 Aug 2014 20:58:36 GMT
+--------------------------------------
+
+- [2a75f3e](../../commit/2a75f3e) [added] query argument to willTransitionTo
+- [b7e21bb](../../commit/b7e21bb) [fixed] Window scrolling
+- [5864531](../../commit/5864531) [changed] Default `<Redirect from>` to *
+- [1064881](../../commit/1064881) [changed] paths to inherit parents
+- [79caf99](../../commit/79caf99) [added] `<DefaultRoute name>`
+- [25adcab](../../commit/25adcab) [fixed] Using HashLocation without a preceeding /
+- [a63c940](../../commit/a63c940) [added] `<NotFoundRoute>`
+- [d5bd656](../../commit/d5bd656) [changed] path matching algorithm
+- [6526e70](../../commit/6526e70) [removed] location="disabled"
+- [8d2f3ed](../../commit/8d2f3ed) [changed] `<Link/>`s to take params property
+- [2a85b74](../../commit/2a85b74) [changed] handler keys to be optional
+
+
+v0.5.3 - Tue, 26 Aug 2014 03:36:42 GMT
+--------------------------------------
+
+- [273625a](../../commit/273625a) [fixed] Active state on `<Link>`s with key prop
+- [283d3f6](../../commit/283d3f6) [added] RouteStore#registerChildren
+- [a030648](../../commit/a030648) [changed] Relaxed MemoryStore invariant
+- [e028768](../../commit/e028768) [added] `<DefaultRoute>` component
+- [6878120](../../commit/6878120) [added] onAbortedTransition, onActiveStateChange, onTransitionError Routes props
+- [58073ca](../../commit/58073ca) [changed] Transition#cancelReason => abortReason
+- [6d1ae95](../../commit/6d1ae95) [fixed] sibling array route configs
+- [0e7a182](../../commit/0e7a182) [added] pluggable history implementations closes #166
+- [ca96f86](../../commit/ca96f86) [fixed] typo in Link
+- [f3dc513](../../commit/f3dc513) [added] onClick handler to `<Link />`
+- [b9f92f9](../../commit/b9f92f9) [changed] updated rf-changelog
+
+
 v0.5.2 - Thu, 07 Aug 2014 18:25:47 GMT
 --------------------------------------
 

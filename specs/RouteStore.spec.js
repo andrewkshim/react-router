@@ -28,6 +28,31 @@ describe('when a route is looked up by name', function () {
 });
 
 describe('when registering a route', function () {
+
+  describe('that starts with /', function() {
+    it('does not inherit the parent path', function() {
+      var child;
+      var route = Route({ name: 'home', handler: App },
+        child = Route({ path: '/foo', handler: App })
+      );
+      RouteStore.registerRoute(route);
+      expect(child.props.path).toEqual('/foo');
+      RouteStore.unregisterRoute(route);
+    });
+  });
+
+  describe('that does not start with /', function() {
+    it('inherits the parent path', function() {
+      var child;
+      var route = Route({ name: 'home', handler: App },
+        child = Route({ path: 'foo', handler: App })
+      );
+      RouteStore.registerRoute(route);
+      expect(child.props.path).toEqual('/home/foo');
+      RouteStore.unregisterRoute(route);
+    });
+  });
+
   describe('with no handler', function () {
     it('throws an Error', function () {
       expect(function () {
@@ -42,6 +67,19 @@ describe('when registering a route', function () {
       RouteStore.registerRoute(route);
       expect(route.props.path).toEqual('/');
       RouteStore.unregisterRoute(route);
+    });
+
+    describe('that is nested inside another route', function () {
+      it('uses the parent\'s path', function () {
+        var child;
+        var route = Route({ name: 'home', handler: App },
+          child = Route({ handler: App })
+        );
+
+        RouteStore.registerRoute(route);
+        expect(child.props.path).toEqual(route.props.path);
+        RouteStore.unregisterRoute(route);
+      });
     });
   });
 

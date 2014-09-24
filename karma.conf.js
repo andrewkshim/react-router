@@ -3,7 +3,7 @@ module.exports = function(config) {
 
     basePath: '',
 
-    frameworks: ['mocha'],
+    frameworks: ['mocha', 'browserify'],
 
     files: [
       'specs/main.js'
@@ -12,27 +12,13 @@ module.exports = function(config) {
     exclude: [],
 
     preprocessors: {
-      'specs/main.js': ['webpack']
+      'specs/main.js': ['browserify']
     },
 
-    webpack: {
-      cache: true,
-      // TODO: figure out how to get source maps in here, none of this works
-      //devtool: {
-        //'inline-source-map': true,
-        //inlineSourceMap: true
-      //},
-      module: {
-        loaders: [
-          {test: /\.js$/, loader: 'jsx-loader'}
-        ]
-      }
-    },
-
-    webpackServer: {
-      stats: {
-        colors: true
-      }
+    browserify: {
+      transform: ['envify'],
+      watch: true,
+      debug: true
     },
 
     reporters: ['progress'],
@@ -49,13 +35,6 @@ module.exports = function(config) {
 
     captureTimeout: 60000,
 
-    singleRun: false,
-
-    plugins: [
-      require("karma-mocha"),
-      require("karma-chrome-launcher"),
-      require("karma-firefox-launcher"),
-      require("karma-webpack")
-    ]
+    singleRun: false
   });
 };

@@ -1,21 +1,62 @@
 var React = require('react');
 var warning = require('react/lib/warning');
-var ExecutionEnvironment = require('react/lib/ExecutionEnvironment');
-var mergeProperties = require('../helpers/mergeProperties');
-var goBack = require('../helpers/goBack');
-var replaceWith = require('../helpers/replaceWith');
-var transitionTo = require('../helpers/transitionTo');
+var copyProperties = require('react/lib/copyProperties');
+var canUseDOM = require('react/lib/ExecutionEnvironment').canUseDOM;
+var Promise = require('when/lib/Promise');
+var LocationActions = require('../actions/LocationActions');
 var Route = require('../components/Route');
-var Path = require('../helpers/Path');
-var ActiveStore = require('../stores/ActiveStore');
+var ActiveDelegate = require('../mixins/ActiveDelegate');
+var PathListener = require('../mixins/PathListener');
 var RouteStore = require('../stores/RouteStore');
-var URLStore = require('../stores/URLStore');
-var Promise = require('es6-promise').Promise;
+var Path = require('../utils/Path');
+var Redirect = require('../utils/Redirect');
+var Transition = require('../utils/Transition');
 
 /**
  * The ref name that can be used to reference the active route component.
  */
 var REF_NAME = '__activeRoute__';
+
+/**
+ * The default handler for aborted transitions. Redirects replace
+ * the current URL and all others roll it back.
+ */
+function defaultAbortedTransitionHandler(transition) {
+  if (!canUseDOM)
+    return;
+
+  var reason = transition.abortReason;
+
+  if (reason instanceof Redirect) {
+    LocationActions.replaceWith(reason.to, reason.params, reason.query);
+  } else {
+    LocationActions.goBack();
+  }
+}
+
+/**
+ * The default handler for errors that were thrown asynchronously
+ * while transitioning. The default behavior is to re-throw the
+ * error so that it isn't silently swallowed.
+ */
+function defaultTransitionErrorHandler(error) {
+  setTimeout(function () { // Use setTimeout to break the promise chain.
+    throw error; // This error probably originated in a transition hook.
+  });
+}
+
+/**
+ * Updates the window's scroll position given the current route.
+ */
+function maybeUpdateScroll(routes) {
+  if (!canUseDOM)
+    return;
+
+  var currentRoute = routes.getCurrentRoute();
+
+  if (!routes.props.preserveScrollPosition && currentRoute && !currentRoute.props.preserveScrollPosition)
+    LocationActions.updateScroll();
+}
 
 /**
  * The <Routes> component configures the route hierarchy and renders the
@@ -24,71 +65,37 @@ var REF_NAME = '__activeRoute__';
  * See the <Route> component for more details.
  */
 var Routes = React.createClass({
+
   displayName: 'Routes',
 
-  statics: {
-
-    /**
-     * Handles errors that were thrown asynchronously. By default, the
-     * error is re-thrown so we don't swallow them silently.
-     */
-    handleAsyncError: function (error, route) {
-      throw error; // This error probably originated in a transition hook.
-    },
-
-    /**
-     * Handles cancelled transitions. By default, redirects replace the
-     * current URL and aborts roll it back.
-     */
-    handleCancelledTransition: function (transition, routes) {
-      var reason = transition.cancelReason;
-
-      if (reason instanceof Redirect) {
-        replaceWith(reason.to, reason.params, reason.query);
-      } else if (reason instanceof Abort) {
-        goBack();
-      }
-    }
-
-  },
+  mixins: [ ActiveDelegate, PathListener ],
 
   propTypes: {
-    location: React.PropTypes.oneOf([ 'hash', 'history' ]).isRequired,
+    onAbortedTransition: React.PropTypes.func.isRequired,
+    onTransitionError: React.PropTypes.func.isRequired,
     preserveScrollPosition: React.PropTypes.bool
   },
 
   getDefaultProps: function () {
     return {
-      location: 'hash',
+      onAbortedTransition: defaultAbortedTransitionHandler,
+      onTransitionError: defaultTransitionErrorHandler,
       preserveScrollPosition: false
     };
   },
 
   getInitialState: function () {
-    return {};
+    return {
+      routes: RouteStore.registerChildren(this.props.children, this)
+    };
   },
 
-  componentWillMount: function () {
-    React.Children.forEach(this.props.children, function (child) {
-      RouteStore.registerRoute(child);
-    });
-
-    if (!URLStore.isSetup() && ExecutionEnvironment.canUseDOM)
-      URLStore.setup(this.props.location);
-
-    URLStore.addChangeListener(this.handleRouteChange);
-  },
-
-  componentDidMount: function () {
-    this.dispatch(URLStore.getCurrentPath());
-  },
-
-  componentWillUnmount: function () {
-    URLStore.removeChangeListener(this.handleRouteChange);
-  },
-
-  handleRouteChange: function () {
-    this.dispatch(URLStore.getCurrentPath());
+  /**
+   * Gets the <Route> component that is currently active.
+   */
+  getCurrentRoute: function () {
+    var rootMatch = getRootMatch(this.state.matches);
+    return rootMatch && rootMatch.route;
   },
 
   /**
@@ -109,15 +116,7 @@ var Routes = React.createClass({
    *                               { route: <PostRoute>, params: { id: '123' } } ]
    */
   match: function (path) {
-    var rootRoutes = this.props.children;
-    if (!Array.isArray(rootRoutes)) {
-      rootRoutes = [rootRoutes];
-    }
-    var matches = null;
-    for (var i = 0; matches == null && i < rootRoutes.length; i++) {
-      matches = findMatches(Path.withoutQuery(path), rootRoutes[i]);
-    }
-    return matches;
+    return findMatches(Path.withoutQuery(path), this.state.routes, this.props.defaultRoute, this.props.notFoundRoute);
   },
 
   /**
@@ -136,38 +135,31 @@ var Routes = React.createClass({
    * redirect the transition. If they need to resolve asynchronously, they may
    * return a promise.
    *
-   * Any error that occurs asynchronously during the transition is re-thrown in
-   * the top-level scope unless returnRejectedPromise is true, in which case a
-   * rejected promise is returned so the caller may handle the error.
-   *
    * Note: This function does not update the URL in a browser's location bar.
    * If you want to keep the URL in sync with transitions, use Router.transitionTo,
    * Router.replaceWith, or Router.goBack instead.
    */
-  dispatch: function (path, returnRejectedPromise) {
-    var transition = new Transition(path);
+  updatePath: function (path) {
     var routes = this;
+    var transition = new Transition(path);
 
-    var promise = syncWithTransition(routes, transition).then(function (newState) {
-      if (transition.isCancelled) {
-        Routes.handleCancelledTransition(transition, routes);
-      } else if (newState) {
-        ActiveStore.updateState(newState);
-      }
+    return runTransitionHooks(routes, transition)
+      .then(function (newState) {
+        if (transition.isAborted)
+          routes.props.onAbortedTransition(transition);
 
-      return transition;
-    });
+        if (newState == null)
+          return transition;
 
-    if (!returnRejectedPromise) {
-      promise = promise.then(undefined, function (error) {
-        // Use setTimeout to break the promise chain.
-        setTimeout(function () {
-          Routes.handleAsyncError(error, routes);
+        return new Promise(function (resolve) {
+          routes.setState(newState, function () {
+            routes.emitChange();
+            maybeUpdateScroll(routes);
+            resolve(transition);
+          });
         });
-      });
-    }
-
-    return promise;
+      })
+      .then(undefined, this.props.onTransitionError);
   },
 
   render: function () {
@@ -185,71 +177,44 @@ var Routes = React.createClass({
 
 });
 
-function Transition(path) {
-  this.path = path;
-  this.cancelReason = null;
-  this.isCancelled = false;
-}
+function findMatches(path, routes, defaultRoute, notFoundRoute) {
+  var matches = null, route, params;
 
-mergeProperties(Transition.prototype, {
+  for (var i = 0, len = routes.length; i < len; ++i) {
+    route = routes[i];
 
-  abort: function () {
-    this.cancelReason = new Abort();
-    this.isCancelled = true;
-  },
+    // Check the subtree first to find the most deeply-nested match.
+    matches = findMatches(path, route.props.children, route.props.defaultRoute, route.props.notFoundRoute);
 
-  redirect: function (to, params, query) {
-    this.cancelReason = new Redirect(to, params, query);
-    this.isCancelled = true;
-  },
+    if (matches != null) {
+      var rootParams = getRootMatch(matches).params;
+      
+      params = route.props.paramNames.reduce(function (params, paramName) {
+        params[paramName] = rootParams[paramName];
+        return params;
+      }, {});
 
-  retry: function () {
-    transitionTo(this.path);
-  }
+      matches.unshift(makeMatch(route, params));
 
-});
-
-function Abort() {}
-
-function Redirect(to, params, query) {
-  this.to = to;
-  this.params = params;
-  this.query = query;
-}
-
-function findMatches(path, route) {
-  var children = route.props.children, matches;
-  var params;
-
-  // Check the subtree first to find the most deeply-nested match.
-  if (Array.isArray(children)) {
-    for (var i = 0, len = children.length; matches == null && i < len; ++i) {
-      matches = findMatches(path, children[i]);
+      return matches;
     }
-  } else if (children) {
-    matches = findMatches(path, children);
+
+    // No routes in the subtree matched, so check this route.
+    params = Path.extractParams(route.props.path, path);
+
+    if (params)
+      return [ makeMatch(route, params) ];
   }
 
-  if (matches) {
-    var rootParams = getRootMatch(matches).params;
-    params = {};
+  // No routes matched, so try the default route if there is one.
+  if (defaultRoute && (params = Path.extractParams(defaultRoute.props.path, path)))
+    return [ makeMatch(defaultRoute, params) ];
 
-    Path.extractParamNames(route.props.path).forEach(function (paramName) {
-      params[paramName] = rootParams[paramName];
-    });
+  // Last attempt: does the "not found" route match?
+  if (notFoundRoute && (params = Path.extractParams(notFoundRoute.props.path, path)))
+    return [ makeMatch(notFoundRoute, params) ];
 
-    matches.unshift(makeMatch(route, params));
-
-    return matches;
-  }
-
-  // No routes in the subtree matched, so check this route.
-  params = Path.extractParams(route.props.path, path);
-
-  if (params)
-    return [ makeMatch(route, params) ];
-
-  return null;
+  return matches;
 }
 
 function makeMatch(route, params) {
@@ -288,7 +253,7 @@ function updateMatchComponents(matches, refs) {
  * if they all pass successfully. Returns a promise that resolves to the new
  * state if it needs to be updated, or undefined if not.
  */
-function syncWithTransition(routes, transition) {
+function runTransitionHooks(routes, transition) {
   if (routes.state.path === transition.path)
     return Promise.resolve(); // Nothing to do!
 
@@ -320,18 +285,20 @@ function syncWithTransition(routes, transition) {
     toMatches = nextMatches;
   }
 
-  return checkTransitionFromHooks(fromMatches, transition).then(function () {
-    if (transition.isCancelled)
+  var query = Path.extractQuery(transition.path) || {};
+
+  return runTransitionFromHooks(fromMatches, transition).then(function () {
+    if (transition.isAborted)
       return; // No need to continue.
 
-    return checkTransitionToHooks(toMatches, transition).then(function () {
-      if (transition.isCancelled)
+    return runTransitionToHooks(toMatches, transition, query).then(function () {
+      if (transition.isAborted)
         return; // No need to continue.
 
       var rootMatch = getRootMatch(nextMatches);
       var params = (rootMatch && rootMatch.params) || {};
-      var query = Path.extractQuery(transition.path) || {};
-      var state = {
+
+      return {
         path: transition.path,
         matches: nextMatches,
         activeParams: params,
@@ -340,12 +307,6 @@ function syncWithTransition(routes, transition) {
           return match.route;
         })
       };
-
-      // TODO: add functional test
-      maybeScrollWindow(routes, toMatches[toMatches.length - 1]);
-      routes.setState(state);
-
-      return state;
     });
   });
 }
@@ -356,14 +317,14 @@ function syncWithTransition(routes, transition) {
  * the route's handler, so that the deepest nested handlers are called first.
  * Returns a promise that resolves after the last handler.
  */
-function checkTransitionFromHooks(matches, transition) {
+function runTransitionFromHooks(matches, transition) {
   var promise = Promise.resolve();
 
   reversedArray(matches).forEach(function (match) {
     promise = promise.then(function () {
       var handler = match.route.props.handler;
 
-      if (!transition.isCancelled && handler.willTransitionFrom)
+      if (!transition.isAborted && handler.willTransitionFrom)
         return handler.willTransitionFrom(transition, match.component);
     });
   });
@@ -376,15 +337,15 @@ function checkTransitionFromHooks(matches, transition) {
  * with the transition object and any params that apply to that handler. Returns
  * a promise that resolves after the last handler.
  */
-function checkTransitionToHooks(matches, transition) {
+function runTransitionToHooks(matches, transition, query) {
   var promise = Promise.resolve();
 
   matches.forEach(function (match) {
     promise = promise.then(function () {
       var handler = match.route.props.handler;
 
-      if (!transition.isCancelled && handler.willTransitionTo)
-        return handler.willTransitionTo(transition, match.params);
+      if (!transition.isAborted && handler.willTransitionTo)
+        return handler.willTransitionTo(transition, match.params, query);
     });
   });
 
@@ -411,9 +372,11 @@ function computeHandlerProps(matches, query) {
     props = Route.getUnreservedProps(route.props);
 
     props.ref = REF_NAME;
-    props.key = Path.injectParams(route.props.path, match.params);
     props.params = match.params;
     props.query = query;
+
+    if (route.props.addHandlerKey)
+      props.key = Path.injectParams(route.props.path, match.params);
 
     if (childHandler) {
       props.activeRouteHandler = childHandler;
@@ -425,7 +388,7 @@ function computeHandlerProps(matches, query) {
       if (arguments.length > 2 && typeof arguments[2] !== 'undefined')
         throw new Error('Passing children to a route handler is not supported');
 
-      return route.props.handler(mergeProperties(props, addedProps));
+      return route.props.handler(copyProperties(props, addedProps));
     }.bind(this, props);
 
     // Provide a uniquely identifiable key for this handler
@@ -444,16 +407,6 @@ function returnNull() {
 
 function reversedArray(array) {
   return array.slice(0).reverse();
-}
-
-function maybeScrollWindow(routes, match) {
-  if (routes.props.preserveScrollPosition)
-    return;
-
-  if (!match || match.route.props.preserveScrollPosition)
-    return;
-
-  window.scrollTo(0, 0);
 }
 
 module.exports = Routes;

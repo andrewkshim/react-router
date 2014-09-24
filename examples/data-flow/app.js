@@ -1,6 +1,6 @@
 /** @jsx React.DOM */
 var React = require('react');
-var Router = require('../../index');
+var Router = require('react-router');
 var Route = Router.Route;
 var Routes = Router.Routes;
 var Link = Router.Link;
@@ -33,7 +33,7 @@ var App = React.createClass({
 
   render: function() {
     var links = this.state.tacos.map(function(taco) {
-      return <li><Link to="taco" name={taco.name}>{taco.name}</Link></li>
+      return <li><Link to="taco" params={taco}>{taco.name}</Link></li>
     });
     return (
       <div className="App">

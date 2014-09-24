@@ -1,6 +1,6 @@
 /** @jsx React.DOM */
 var React = require('react');
-var Router = require('../../index');
+var Router = require('react-router');
 var Route = Router.Route;
 var Routes = Router.Routes;
 var Link = Router.Link;
@@ -10,9 +10,9 @@ var App = React.createClass({
     return (
       <div>
         <ul>
-          <li><Link to="user" userId="123">Bob</Link></li>
-          <li><Link to="user" userId="123" query={{showAge: true}}>Bob With Query Params</Link></li>
-          <li><Link to="user" userId="abc">Sally</Link></li>
+          <li><Link to="user" params={{userId: "123"}}>Bob</Link></li>
+          <li><Link to="user" params={{userId: "123"}} query={{showAge: true}}>Bob With Query Params</Link></li>
+          <li><Link to="user" params={{userId: "abc"}}>Sally</Link></li>
         </ul>
         {this.props.activeRouteHandler()}
       </div>

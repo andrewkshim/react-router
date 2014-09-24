@@ -1,6 +1,6 @@
 /** @jsx React.DOM */
 var React = require('react');
-var Router = require('../../index');
+var Router = require('react-router');
 var Route = Router.Route;
 var Routes = Router.Routes;
 var Link = Router.Link;
@@ -53,7 +53,7 @@ var State = React.createClass({
 var routes = (
   <Routes>
     <Route handler={App}>
-      <Route name="state" path="state/:abbr" handler={State}/>
+      <Route name="state" path="state/:abbr" addHandlerKey={true} handler={State}/>
     </Route>
   </Routes>
 );
@@ -130,4 +130,3 @@ function findStates() {
 function underscore(str) {
   return str.toLowerCase().replace(/ /, '_');
 }
-
