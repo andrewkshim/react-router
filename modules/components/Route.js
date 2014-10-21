@@ -1,19 +1,4 @@
 var React = require('react');
-var withoutProperties = require('../utils/withoutProperties');
-
-/**
- * A map of <Route> component props that are reserved for use by the
- * router and/or React. All other props are considered "static" and
- * are passed through to the route handler.
- */
-var RESERVED_PROPS = {
-  handler: true,
-  path: true,
-  defaultRoute: true,
-  notFoundRoute: true,
-  paramNames: true,
-  children: true // ReactChildren
-};
 
 /**
  * <Route> components specify components that are rendered to the page when the
@@ -24,10 +9,6 @@ var RESERVED_PROPS = {
  * When one is found, all routes in the tree that lead to it are considered
  * "active" and their components are rendered into the DOM, nested in the same
  * order as they are in the tree.
- *
- * Unlike Ember, a nested route's path does not build upon that of its parents.
- * This may seem like it creates more work up front in specifying URLs, but it
- * has the nice benefit of decoupling nested UI from "nested" URLs.
  *
  * The preferred way to configure a router is using JSX. The XML-like syntax is
  * a great way to visualize how routes are laid out in an application.
@@ -68,25 +49,12 @@ var Route = React.createClass({
 
   displayName: 'Route',
 
-  statics: {
-
-    getUnreservedProps: function (props) {
-      return withoutProperties(props, RESERVED_PROPS);
-    },
-
-  },
-
   propTypes: {
     handler: React.PropTypes.any.isRequired,
-    preserveScrollPosition: React.PropTypes.bool.isRequired,
+    getAsyncProps: React.PropTypes.func,
     path: React.PropTypes.string,
-    name: React.PropTypes.string
-  },
-
-  getDefaultProps: function () {
-    return {
-      preserveScrollPosition: false
-    };
+    name: React.PropTypes.string,
+    ignoreScrollBehavior: React.PropTypes.bool
   },
 
   render: function () {

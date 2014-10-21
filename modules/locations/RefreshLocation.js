@@ -1,5 +1,3 @@
-var invariant = require('react/lib/invariant');
-var canUseDOM = require('react/lib/ExecutionEnvironment').canUseDOM;
 var getWindowPath = require('../utils/getWindowPath');
 
 /**
@@ -8,13 +6,6 @@ var getWindowPath = require('../utils/getWindowPath');
  * support the HTML5 history API.
  */
 var RefreshLocation = {
-
-  setup: function () {
-    invariant(
-      canUseDOM,
-      'You cannot use RefreshLocation in an environment with no DOM'
-    );
-  },
 
   push: function (path) {
     window.location = path;

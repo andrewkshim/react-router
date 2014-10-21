@@ -1,13 +1,13 @@
 {
   "name": "react-router",
-  "version": "0.7.0",
+  "version": "0.9.4",
   "description": "A complete routing library for React.js",
   "main": "./modules/index",
   "repository": {
     "type": "git",
     "url": "https://github.com/rackt/react-router.git"
   },
-  "homepage": "https://github.com/rackt/react-router",
+  "homepage": "https://github.com/rackt/react-router/blob/latest/README.md",
   "bugs": "https://github.com/rackt/react-router/issues",
   "directories": {
     "example": "examples"
@@ -23,8 +23,10 @@
   "devDependencies": {
     "browserify": "4.2.3",
     "browserify-shim": "3.6.0",
+    "bundle-loader": "0.5.1",
     "envify": "1.2.0",
     "expect": "0.1.1",
+    "jsx-loader": "0.11.2",
     "karma": "0.12.16",
     "karma-browserify": "^0.2.1",
     "karma-chrome-launcher": "0.1.4",
@@ -34,15 +36,16 @@
     "mocha": "1.20.1",
     "react": ">=0.11.0",
     "reactify": "^0.14.0",
-    "rf-release": "0.3.1",
-    "uglify-js": "2.4.15"
+    "rf-release": "0.3.2",
+    "uglify-js": "2.4.15",
+    "webpack": "1.4.5",
+    "webpack-dev-server": "1.6.5"
   },
   "peerDependencies": {
     "react": ">=0.11.0"
   },
   "dependencies": {
     "events": "1.0.1",
-    "flux": "2.0.1",
     "qs": "2.2.2",
     "when": "3.4.6"
   },

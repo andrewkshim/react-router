@@ -1,6 +1,6 @@
 var mixInto = require('react/lib/mixInto');
+var Promise = require('./Promise');
 var Redirect = require('./Redirect');
-var replaceWith = require('../actions/LocationActions').replaceWith;
 
 /**
  * Encapsulates a transition to a given path.
@@ -8,7 +8,8 @@ var replaceWith = require('../actions/LocationActions').replaceWith;
  * The willTransitionTo and willTransitionFrom handlers receive
  * an instance of this class as their first argument.
  */
-function Transition(path) {
+function Transition(routesComponent, path) {
+  this.routesComponent = routesComponent;
   this.path = path;
   this.abortReason = null;
   this.isAborted = false;
@@ -25,8 +26,12 @@ mixInto(Transition, {
     this.abort(new Redirect(to, params, query));
   },
 
+  wait: function (value) {
+    this.promise = Promise.resolve(value);
+  },
+
   retry: function () {
-    replaceWith(this.path);
+    this.routesComponent.replaceWith(this.path);
   }
 
 });
