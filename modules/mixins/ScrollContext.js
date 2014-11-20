@@ -54,8 +54,11 @@ var ScrollContext = {
   },
 
   recordScroll: function (path) {
-    var positions = this.getScrollPositions();
-    positions[path] = getWindowScrollPosition();
+    var behavior = this.getScrollBehavior();
+    if (behavior) {
+      var positions = this.getScrollPositions();
+      positions[path] = getWindowScrollPosition();
+    }
   },
 
   updateScroll: function (path, actionType) {
