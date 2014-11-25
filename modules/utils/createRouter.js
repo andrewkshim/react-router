@@ -9,7 +9,6 @@ var HistoryLocation = require('../locations/HistoryLocation');
 var RefreshLocation = require('../locations/RefreshLocation');
 var NavigationContext = require('../mixins/NavigationContext');
 var StateContext = require('../mixins/StateContext');
-var Scrolling = require('../mixins/Scrolling');
 var createRoutesFromChildren = require('./createRoutesFromChildren');
 var supportsHistory = require('./supportsHistory');
 var Transition = require('./Transition');
@@ -155,7 +154,7 @@ function createRouter(options) {
 
     displayName: 'Router',
 
-    mixins: [ NavigationContext, StateContext, Scrolling ],
+    mixins: [ NavigationContext, StateContext ],
 
     statics: {
 
