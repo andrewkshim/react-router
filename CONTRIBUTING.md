@@ -1,3 +1,9 @@
+### Tests
+
+All commits that fix bugs or add features need a test.
+
+`<blink>` Do not merge code without tests.`</blink>`
+
 ### Commit Subjects for Public API Changes
 
 If your patch **changes the API or fixes a bug** please use one of the
@@ -28,11 +34,9 @@ always be in sync.
 
 ### Development
 
-- `scripts/test` will fire up a karma runner and watch for changes in the
-  specs directory.
-- `npm test` will do the same but doesn't watch, just runs the tests.
-- `scripts/dev-examples` fires up a webpack dev server that will watch
-  for changes and build the examples.
+- `npm test` will fire up a karma test runner and watch for changes
+- `npm run examples` fires up a webpack dev server that will watch
+  for changes and build the examples
 
 ### Build
 

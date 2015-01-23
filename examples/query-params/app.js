@@ -1,31 +1,31 @@
-/** @jsx React.DOM */
 var React = require('react');
 var Router = require('react-router');
-var Route = Router.Route;
-var Routes = Router.Routes;
-var Link = Router.Link;
+var { Route, RouteHandler, Link } = Router;
 
 var App = React.createClass({
-  render: function() {
+  render: function () {
     return (
       <div>
         <ul>
-          <li><Link to="user" params={{userId: "123"}}>Bob</Link></li>
-          <li><Link to="user" params={{userId: "123"}} query={{showAge: true}}>Bob With Query Params</Link></li>
-          <li><Link to="user" params={{userId: "abc"}}>Sally</Link></li>
+          <li><Link to="user" params={{userID: "123"}}>Bob</Link></li>
+          <li><Link to="user" params={{userID: "123"}} query={{showAge: true}}>Bob With Query Params</Link></li>
+          <li><Link to="user" params={{userID: "abc"}}>Sally</Link></li>
         </ul>
-        <this.props.activeRouteHandler />
+        <RouteHandler/>
       </div>
     );
   }
 });
 
 var User = React.createClass({
-  render: function() {
-    var age = this.props.query.showAge ? '33' : '';
+  mixins: [ Router.State ],
+
+  render: function () {
+    var age = this.getQuery().showAge ? '33' : '';
+    var userID = this.getParams().userID;
     return (
       <div className="User">
-        <h1>User id: {this.props.params.userId}</h1>
+        <h1>User id: {userID}</h1>
         {age}
       </div>
     );
@@ -33,11 +33,11 @@ var User = React.createClass({
 });
 
 var routes = (
-  <Routes>
-    <Route handler={App}>
-      <Route name="user" path="user/:userId" handler={User}/>
-    </Route>
-  </Routes>
+  <Route handler={App}>
+    <Route name="user" path="user/:userID" handler={User}/>
+  </Route>
 );
 
-React.renderComponent(routes, document.getElementById('example'));
+Router.run(routes, function (Handler) {
+  React.render(<Handler/>, document.getElementById('example'));
+});

@@ -1,7 +1,8 @@
 API: `Route` (component)
 =========================
 
-Configuration component to declare your application's routes and view hierarchy.
+Configuration component to declare your application's routes and entry
+view hierarchy.
 
 Props
 -----
@@ -23,77 +24,38 @@ about supported path matching syntax.
 
 The component to be rendered when the route is active.
 
-### `addHandlerKey`
-
-Defaults to `false`.
-
-If you have dynamic segments in your URL, a transition from `/users/123`
-to `/users/456` does not call `getInitialState`, `componentWillMount` or
-`componentWillUnmount`. If you are using those lifecycle hooks to fetch
-data and set state, you will also need to implement
-`componentWillReceiveProps` on your handler, just like any other
-component with changing props. This way, you can leverage the
-performance of the React DOM diff algorithm. Look at the `Contact`
-handler in the `master-detail` example.
-
-If you'd rather be lazy, set this to `true` and the router will add a
-key to your route, causing all new DOM to be built, and then the life
-cycle hooks will all be called.
-
-You will want this to be `true` if you're doing animations with React's
-TransitionGroup component.
-
 ### `children`
 
-Routes can be nested. When a child route matches, the parent route's
-handler will have the child route's handler available as
-`this.props.activeRouteHandler`. You can then render it in the parent
-passing in any additional props as needed.
+Routes can be nested. When a child route path matches, the parent route
+is also activated. Please refer to the [overview][overview] since this
+is a very critical part of the router's design.
 
-### `[prop]`
+### `ignoreScrollBehavior`
 
-Any additional, user-defined, properties will be become properties of
-the rendered handler.
+When route or its `params` change, router adjusts window scroll position according to [`scrollBehavior`](https://github.com/rackt/react-router/blob/master/docs/api/create.md#scrollbehavior). This is generally desirable but you might want to opt out of scrolling adjustment for a specific route or a group of routes.
 
-#### Example:
+If you specify `ignoreScrollBehavior` attribute on a route, changes in `params` or any transitions within its `children` will not adjust scroll position. This can be useful on a search page or in a tabbed interface.
 
-```js
-var App;
-var foo = "hello";
-
-var routes = (
-  <Routes>
-    // pass `foo` to `something`
-    <Route handler={App} something={foo}/>
-  </Routes>
-);
-
-App = React.createClass({
-  render: function() {
-    // access `something` on props
-    return <div>{this.props.something}</div>
-  }
-});
-
-React.renderComponent(routes, document.body);
-document.body.innerHTML // -> <div>hello</div>
-```
+Note that changes in `query` never adjust scroll position, regardless of the value of this attribute.
 
 Example
 -------
 
 ```xml
-<Routes>
-  <!-- path defaults to '/' since no name or path provided -->
-  <Route handler={App}>
-    <!-- path is automatically assigned to the name since it is omitted -->
-    <Route name="about" handler={About}/>
-    <Route name="users" handler={Users}>
-      <!-- note the dynamic segment in the path -->
-      <Route name="user" handler={User} path="/user/:id"/>
-    </Route>
+<!-- `path` defaults to '/' since no name or path provided -->
+<Route handler={App}>
+  <!-- path is automatically assigned to the name since it is omitted -->
+  <Route name="about" handler={About}/>
+  <Route name="users" handler={Users}>
+    <!--
+      note the dynamic segment in the path, and that it starts with `/`,
+      which makes it "absolute", or rather, it doesn't inherit the path
+      from the parent route
+    -->
+    <Route name="user" handler={User} path="/user/:id"/>
   </Route>
-</Routes>
+</Route>
 ```
 
+  [overview]:/docs/guides/overview.md
   [path-matching]:/docs/guides/path-matching.md

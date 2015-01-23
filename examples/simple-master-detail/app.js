@@ -1,22 +1,22 @@
-/** @jsx React.DOM */
 var React = require('react');
 var Router = require('react-router');
-var Route = Router.Route;
-var Routes = Router.Routes;
-var Link = Router.Link;
+var { Route, DefaultRoute, RouteHandler, Link } = Router;
 
 var App = React.createClass({
-  getInitialState: function() {
-    return { states: findStates() }
+  getInitialState: function () {
+    return { states: findStates() };
   },
 
-  indexTemplate: function() {
-    return <p>Select a state from the left</p>;
-  },
-
-  render: function() {
-    var links = this.state.states.map(function(state) {
-      return <li><Link to="state" params={{ abbr: state.abbr }}>{state.name}</Link></li>
+  render: function () {
+    var links = this.state.states.map(function (state) {
+      return (
+        <li key={state.abbr}>
+          <Link
+            to="state"
+            params={{ abbr: state.abbr }}
+          >{state.name}</Link>
+        </li>
+      );
     });
     return (
       <div className="App">
@@ -24,41 +24,47 @@ var App = React.createClass({
           {links}
         </ul>
         <div className="Detail">
-          {this.props.activeRouteHandler() || this.indexTemplate()}
+          <RouteHandler/>
         </div>
       </div>
     );
   }
 });
 
+var Index = React.createClass({
+  render: function () {
+    return <p>Select a state from the left</p>;
+  }
+});
+
 var State = React.createClass({
-  getInitialState: function() {
-    return findState(this.props.params.abbr);
+  mixins: [ Router.State ],
+
+  imageUrl: function (name) {
+    return "http://www.50states.com/maps/" + underscore(name) + ".gif";
   },
 
-  imageUrl: function() {
-    return "http://www.50states.com/maps/"+underscore(this.state.name)+".gif";
-  },
-
-  render: function() {
+  render: function () {
+    var unitedState = findState(this.getParams().abbr);
     return (
       <div className="State">
-        <h1>{this.state.name}</h1>
-        <img src={this.imageUrl()}/>
+        <h1>{unitedState.name}</h1>
+        <img src={this.imageUrl(unitedState.name)}/>
       </div>
     );
   }
 });
 
 var routes = (
-  <Routes>
-    <Route handler={App}>
-      <Route name="state" path="state/:abbr" addHandlerKey={true} handler={State}/>
-    </Route>
-  </Routes>
+  <Route handler={App}>
+    <DefaultRoute handler={Index}/>
+    <Route name="state" path="state/:abbr" handler={State}/>
+  </Route>
 );
 
-React.renderComponent(routes, document.getElementById('example'));
+Router.run(routes, function (Handler) {
+  React.render(<Handler/>, document.getElementById('example'));
+});
 
 /*****************************************************************************/
 // data stuff

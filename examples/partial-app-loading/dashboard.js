@@ -1,19 +1,17 @@
-/** @jsx React.DOM */
-
 var React = require('react');
-var ReactRouter = require('react-router');
-var Link = ReactRouter.Link;
+var Router = require('react-router');
+var { RouteHandler, Link } = Router;
 
 var Dashboard = React.createClass({
 
-  render: function() {
+  render: function () {
     return (
       <div>
         <h1>Dashboard!</h1>
         <ul>
           <li><Link to="inbox">Inbox</Link></li>
         </ul>
-        {this.props.activeRouteHandler()}
+        <RouteHandler/>
       </div>
     );
   }

@@ -7,14 +7,13 @@ following methods must be implemented:
 Methods
 -------
 
-### `setup(onChange)`
+### `addChangeListener(listener)`
 
-Called when the router is first setup. The `onChange` function should be
-called without any arguments when the location changes.
+Adds a function to the location that should be called when it changes.
 
-### `teardown`
+### `removeChangeListener(listener)`
 
-Called when the router is torn down.
+Stop calling the given function when the location changes.
 
 ### `push`
 
@@ -22,7 +21,7 @@ Called when the router is transitioning from one path to another.
 
 ### `replace`
 
-Called when ther router is replacing (not transitioning) one url with
+Called when the router is replacing (not transitioning) one url with
 another.
 
 ### `pop`
@@ -38,8 +37,15 @@ This method should be ready to go immediately after setup.
 
 Should return a useful string for logging and debugging.
 
-Example
+History
 -------
 
-For examples of how to implement your own location, please see the locations
-included in this repository.
+Additionally, location objects must:
+
+- Increment `ReactRouter.History.length` immediately **after** the URL changes
+- Decrement `ReactRouter.History.length` immediately **before** going back to the
+  previous URL
+
+Please refer to the [built-in location objects][locations] to get an idea for how this is done.
+
+[locations]: /locations

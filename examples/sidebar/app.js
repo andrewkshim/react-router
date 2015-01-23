@@ -1,41 +1,36 @@
-/** @jsx React.DOM */
 var React = require('react');
 var Router = require('react-router');
-var Routes = Router.Routes;
-var Route = Router.Route;
-var DefaultRoute = Router.DefaultRoute;
-var Link = Router.Link;
-var ActiveState = Router.ActiveState;
+var { Route, DefaultRoute, RouteHandler, Link } = Router;
 var data = require('./data');
 
 var CategoryNav = React.createClass({
-  getInitialState: function() {
+  getInitialState: function () {
     return { isOpen: this.props.defaultIsOpen};
   },
 
-  getDefaultProps: function() {
+  getDefaultProps: function () {
     return { isOpen: false };
   },
 
-  componentWillReceiveProps: function(newProps) {
+  componentWillReceiveProps: function (newProps) {
     if (!this.state.isOpen)
-      this.setState({isOpen: newProps.defaultIsOpen});
+      this.setState({ isOpen: newProps.defaultIsOpen });
   },
 
-  toggle: function() {
-    this.setState({isOpen: !this.state.isOpen});
+  toggle: function () {
+    this.setState({ isOpen: !this.state.isOpen });
   },
 
-  buildToggleClassName: function() {
+  buildToggleClassName: function () {
     var toggleClassName = 'CategoryNav__Toggle';
     if (this.state.isOpen)
       toggleClassName += ' CategoryNav__Toggle--is-open';
     return toggleClassName;
   },
 
-  renderItems: function() {
+  renderItems: function () {
     var category = this.props.category;
-    return this.state.isOpen ? category.items.map(function(item) {
+    return this.state.isOpen ? category.items.map(function (item) {
       var params = { name: item.name, category: category.name };
       return (
         <li key={item.name}>
@@ -45,7 +40,7 @@ var CategoryNav = React.createClass({
     }) : null;
   },
 
-  render: function() {
+  render: function () {
     var category = this.props.category;
     return (
       <div className="CategoryNav">
@@ -60,7 +55,7 @@ var CategoryNav = React.createClass({
 });
 
 var Sidebar = React.createClass({
-  renderCategory: function(category) {
+  renderCategory: function (category) {
     return <CategoryNav
       key={category.name}
       defaultIsOpen={category.name === this.props.activeCategory}
@@ -68,7 +63,7 @@ var Sidebar = React.createClass({
     />;
   },
 
-  render: function() {
+  render: function () {
     return (
       <div className="Sidebar">
         {this.props.categories.map(this.renderCategory)}
@@ -78,15 +73,15 @@ var Sidebar = React.createClass({
 });
 
 var App = React.createClass({
-  mixins: [ActiveState],
+  mixins: [ Router.State ],
 
-  render: function() {
-    var activeCategory = this.getActiveParams().category;
+  render: function () {
+    var activeCategory = this.getParams().category;
     return (
       <div>
         <Sidebar activeCategory={activeCategory} categories={data.getAll()}/>
         <div className="Content">
-          <this.props.activeRouteHandler />
+          <RouteHandler/>
         </div>
       </div>
     );
@@ -94,8 +89,10 @@ var App = React.createClass({
 });
 
 var Item = React.createClass({
-  render: function() {
-    var params = this.props.params;
+  mixins: [ Router.State ],
+
+  render: function () {
+    var params = this.getParams();
     var category = data.lookupCategory(params.category);
     var item = data.lookupItem(params.category, params.name);
     return (
@@ -108,7 +105,7 @@ var Item = React.createClass({
 });
 
 var Index = React.createClass({
-  render: function() {
+  render: function () {
     return (
       <div>
         <p>Sidebar features:</p>
@@ -136,13 +133,12 @@ var Index = React.createClass({
 });
 
 var routes = (
-  <Routes>
-    <Route handler={App}>
-      <DefaultRoute handler={Index}/>
-      <Route name="item" path=":category/:name" handler={Item} />
-    </Route>
-  </Routes>
+  <Route handler={App}>
+    <DefaultRoute handler={Index}/>
+    <Route name="item" path=":category/:name" handler={Item} />
+  </Route>
 );
 
-React.renderComponent(routes, document.getElementById('example'));
-
+Router.run(routes, function (Handler) {
+  React.render(<Handler/>, document.getElementById('example'));
+});

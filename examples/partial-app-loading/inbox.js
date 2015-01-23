@@ -1,10 +1,8 @@
-/** @jsx React.DOM */
-
 var React = require('react');
 
 var Inbox = React.createClass({
 
-  render: function() {
+  render: function () {
     return (
       <div>
         <h1>Inbox!</h1>
